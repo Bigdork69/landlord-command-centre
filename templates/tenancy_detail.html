@@ -105,4 +105,72 @@
         </div>
     </div>
 </div>
+
+<!-- Compliance Timeline -->
+{% if events %}
+<div class="card" style="margin-top: 1.5rem;">
+    <h2>📅 Compliance Timeline</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Due Date</th>
+                <th>Task</th>
+                <th>Priority</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr style="{% if event.status == EventStatus.OVERDUE %}background: #fff5f5;{% elif event.status == EventStatus.COMPLETED %}opacity: 0.6;{% endif %}">
+                <td>
+                    {% if event.status == EventStatus.OVERDUE %}
+                        <span class="badge badge-danger">OVERDUE</span>
+                    {% elif event.status == EventStatus.COMPLETED %}
+                        <span class="badge badge-success">DONE</span>
+                    {% else %}
+                        <span class="badge">PENDING</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.status == EventStatus.OVERDUE %}
+                        <span style="color: #dc3545; font-weight: bold;">
+                    {% endif %}
+                    {{ event.due_date.strftime('%d %b %Y') if event.due_date else '-' }}
+                    {% if event.status == EventStatus.OVERDUE %}
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>{{ event.event_name }}</strong>
+                    <br><small style="color: #666;">{{ event.notes[:80] }}...</small>
+                </td>
+                <td>
+                    {% if event.priority == EventPriority.CRITICAL %}
+                        <span class="badge badge-danger">CRITICAL</span>
+                    {% elif event.priority == EventPriority.HIGH %}
+                        <span class="badge badge-warning">HIGH</span>
+                    {% elif event.priority == EventPriority.MEDIUM %}
+                        <span class="badge">MEDIUM</span>
+                    {% else %}
+                        <span class="badge">LOW</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.status != EventStatus.COMPLETED %}
+                    <form method="POST" action="{{ url_for('complete_event', event_id=event.id) }}" style="display: inline;">
+                        <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">
+                            ✓ Done
+                        </button>
+                    </form>
+                    {% else %}
+                        <span style="color: #27ae60;">✓</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 {% endblock %}

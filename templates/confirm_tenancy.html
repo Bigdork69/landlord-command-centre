@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Tenancy Details - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Review Extracted Data</h1>
+
+{% if warnings %}
+<div class="card" style="background: #fff3cd; border-left: 4px solid #ffc107;">
+    <h3 style="color: #856404;">Warnings</h3>
+    <ul style="margin-left: 1.5rem; color: #856404;">
+        {% for warning in warnings %}
+        <li>{{ warning }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="card">
+    <p style="margin-bottom: 1.5rem; color: #666;">
+        Please review the extracted information below. Edit any incorrect fields before saving.
+        Confidence levels: <span class="badge badge-success">HIGH</span>
+        <span class="badge badge-warning">MEDIUM</span>
+        <span class="badge badge-danger">LOW/NOT FOUND</span>
+    </p>
+
+    <form method="POST" action="{{ url_for('confirm_tenancy') }}">
+        <input type="hidden" name="filepath" value="{{ filepath }}">
+
+        <div class="detail-grid">
+            <div>
+                <h3>Property</h3>
+
+                <div class="form-group">
+                    <label for="property_id">
+                        Select Property
+                        <span class="badge badge-{{ 'success' if confidence.property_address == 'HIGH' else 'warning' if confidence.property_address == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.property_address or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <select id="property_id" name="property_id">
+                        <option value="new">-- Create New Property --</option>
+                        {% for prop in properties %}
+                        <option value="{{ prop.id }}">{{ prop.address }}, {{ prop.postcode }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="property_address">Address (if creating new)</label>
+                    <input type="text" id="property_address" name="property_address"
+                           value="{{ extracted.property_address or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="postcode">
+                        Postcode
+                        <span class="badge badge-{{ 'success' if confidence.postcode == 'HIGH' else 'warning' if confidence.postcode == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.postcode or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <input type="text" id="postcode" name="postcode"
+                           value="{{ extracted.postcode or '' }}">
+                </div>
+            </div>
+
+            <div>
+                <h3>Tenant</h3>
+
+                <div class="form-group">
+                    <label for="tenant_names">
+                        Tenant Name(s)
+                        <span class="badge badge-{{ 'success' if confidence.tenant_names == 'HIGH' else 'warning' if confidence.tenant_names == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.tenant_names or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <input type="text" id="tenant_names" name="tenant_names" required
+                           value="{{ extracted.tenant_names or '' }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-grid" style="margin-top: 1.5rem;">
+            <div>
+                <h3>Dates</h3>
+
+                <div class="form-group">
+                    <label for="tenancy_start_date">
+                        Start Date
+                        <span class="badge badge-{{ 'success' if confidence.tenancy_start_date == 'HIGH' else 'warning' if confidence.tenancy_start_date == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.tenancy_start_date or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <input type="date" id="tenancy_start_date" name="tenancy_start_date" required
+                           value="{{ extracted.tenancy_start_date.isoformat() if extracted.tenancy_start_date else '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="fixed_term_end_date">
+                        Fixed Term End Date
+                        <span class="badge badge-{{ 'success' if confidence.fixed_term_end_date == 'HIGH' else 'warning' if confidence.fixed_term_end_date == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.fixed_term_end_date or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <input type="date" id="fixed_term_end_date" name="fixed_term_end_date"
+                           value="{{ extracted.fixed_term_end_date.isoformat() if extracted.fixed_term_end_date else '' }}">
+                </div>
+            </div>
+
+            <div>
+                <h3>Rent & Deposit</h3>
+
+                <div class="form-group">
+                    <label for="rent_amount">
+                        Rent Amount (£)
+                        <span class="badge badge-{{ 'success' if confidence.rent_amount == 'HIGH' else 'warning' if confidence.rent_amount == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.rent_amount or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <input type="number" id="rent_amount" name="rent_amount" step="0.01" min="0" required
+                           value="{{ extracted.rent_amount or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="rent_frequency">Rent Frequency</label>
+                    <select id="rent_frequency" name="rent_frequency" required>
+                        {% for rf in rent_frequencies %}
+                        <option value="{{ rf.value }}" {% if extracted.rent_frequency == rf.value %}selected{% endif %}>
+                            {{ rf.value | capitalize }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="deposit_amount">
+                        Deposit Amount (£)
+                        <span class="badge badge-{{ 'success' if confidence.deposit_amount == 'HIGH' else 'warning' if confidence.deposit_amount == 'MEDIUM' else 'danger' }}">
+                            {{ confidence.deposit_amount or 'NOT_FOUND' }}
+                        </span>
+                    </label>
+                    <input type="number" id="deposit_amount" name="deposit_amount" step="0.01" min="0"
+                           value="{{ extracted.deposit_amount or '' }}">
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem;">
+            <button type="submit" class="btn btn-success">Save Tenancy & Generate Timeline</button>
+            <a href="{{ url_for('upload_tenancy') }}" style="margin-left: 1rem;">Upload Different File</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Tenancy Agreement - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Upload Tenancy Agreement</h1>
+
+<div class="card" style="max-width: 600px;">
+    <p style="margin-bottom: 1.5rem; color: #666;">
+        Upload a tenancy agreement PDF and we'll automatically extract the key details
+        (tenant name, dates, rent, deposit) for you to review and confirm.
+    </p>
+
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="file">Select PDF File</label>
+            <input type="file" id="file" name="file" accept=".pdf" required
+                   style="padding: 1rem; border: 2px dashed #ddd; width: 100%; border-radius: 4px;">
+        </div>
+
+        <button type="submit" class="btn btn-success">Upload & Extract Data</button>
+        <a href="{{ url_for('tenancies') }}" style="margin-left: 1rem;">Cancel</a>
+    </form>
+</div>
+
+<div class="card" style="max-width: 600px; margin-top: 1rem;">
+    <h3>What we extract:</h3>
+    <ul style="margin-left: 1.5rem; color: #666;">
+        <li>Tenant name(s)</li>
+        <li>Property address & postcode</li>
+        <li>Tenancy start date</li>
+        <li>Fixed term end date</li>
+        <li>Monthly rent amount</li>
+        <li>Deposit amount</li>
+    </ul>
+    <p style="color: #666; margin-top: 1rem;">
+        <strong>Note:</strong> You'll be able to review and edit all extracted data before saving.
+    </p>
+</div>
+{% endblock %}

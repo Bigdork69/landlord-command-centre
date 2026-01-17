@@ -5,6 +5,67 @@
 {% block content %}
 <h1>Dashboard</h1>
 
+<!-- Alerts Section -->
+{% if overdue_events %}
+<div class="card" style="border-left: 4px solid #dc3545; margin-bottom: 1.5rem;">
+    <h2 style="color: #dc3545;">⚠️ Overdue Compliance Tasks ({{ overdue_events | length }})</h2>
+    <table>
+        <tr>
+            <th>Task</th>
+            <th>Due Date</th>
+            <th>Priority</th>
+        </tr>
+        {% for event in overdue_events[:5] %}
+        <tr>
+            <td><strong>{{ event.event_name }}</strong></td>
+            <td style="color: #dc3545;">{{ event.due_date.strftime('%d %b %Y') if event.due_date else '-' }}</td>
+            <td>
+                {% if event.priority.value == 'critical' %}
+                    <span class="badge badge-danger">CRITICAL</span>
+                {% elif event.priority.value == 'high' %}
+                    <span class="badge badge-warning">HIGH</span>
+                {% else %}
+                    <span class="badge">{{ event.priority.value | upper }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% if overdue_events | length > 5 %}
+    <p style="margin-top: 0.5rem;"><a href="{{ url_for('timeline') }}">View all {{ overdue_events | length }} overdue tasks →</a></p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if upcoming_events %}
+<div class="card" style="border-left: 4px solid #ffc107; margin-bottom: 1.5rem;">
+    <h2 style="color: #856404;">📅 Due Soon (Next 14 Days)</h2>
+    <table>
+        <tr>
+            <th>Task</th>
+            <th>Due Date</th>
+            <th>Priority</th>
+        </tr>
+        {% for event in upcoming_events %}
+        <tr>
+            <td><strong>{{ event.event_name }}</strong></td>
+            <td>{{ event.due_date.strftime('%d %b %Y') if event.due_date else '-' }}</td>
+            <td>
+                {% if event.priority.value == 'critical' %}
+                    <span class="badge badge-danger">CRITICAL</span>
+                {% elif event.priority.value == 'high' %}
+                    <span class="badge badge-warning">HIGH</span>
+                {% else %}
+                    <span class="badge">{{ event.priority.value | upper }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p style="margin-top: 0.5rem;"><a href="{{ url_for('timeline') }}">View full timeline →</a></p>
+</div>
+{% endif %}
+
 <div class="stats">
     <div class="stat-card">
         <div class="number">{{ property_count }}</div>
@@ -18,16 +79,23 @@
         <div class="number">£{{ "{:,.2f}".format(total_rent) }}</div>
         <div class="label">Monthly Rent</div>
     </div>
+    <div class="stat-card" style="{% if overdue_events %}background: #f8d7da;{% endif %}">
+        <div class="number" style="{% if overdue_events %}color: #dc3545;{% endif %}">{{ overdue_events | length }}</div>
+        <div class="label">Overdue Tasks</div>
+    </div>
 </div>
 
 <div class="detail-grid">
     <div class="card">
         <h2>Quick Actions</h2>
         <p style="margin-bottom: 1rem;">
-            <a href="{{ url_for('add_property') }}" class="btn btn-success">+ Add Property</a>
+            <a href="{{ url_for('upload_tenancy') }}" class="btn btn-success">+ Upload Tenancy PDF</a>
+        </p>
+        <p style="margin-bottom: 1rem;">
+            <a href="{{ url_for('add_property') }}" class="btn">+ Add Property</a>
         </p>
         <p>
-            <a href="{{ url_for('add_tenancy') }}" class="btn btn-success">+ Add Tenancy</a>
+            <a href="{{ url_for('add_tenancy') }}" class="btn">+ Add Tenancy Manually</a>
         </p>
     </div>
 
