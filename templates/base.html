@@ -4,193 +4,394 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Landlord Command Centre{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-primary: #FDF6F0;
+            --bg-secondary: #FFFFFF;
+            --bg-dark: #1a1a2e;
+            --text-primary: #1a1a2e;
+            --text-secondary: #666;
+            --accent-teal: #4ECDC4;
+            --accent-orange: #FF6B35;
+            --success: #07bc0c;
+            --warning: #f1c40f;
+            --error: #e74c3c;
+            --border: #e0d6cc;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #f5f5f5;
-            color: #333;
+
+        html, body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             line-height: 1.6;
+            font-size: 16px;
         }
+
+        h1, h2, h3, h4, .brand, .stat-card .number {
+            font-family: 'Space Mono', monospace;
+            letter-spacing: -0.02em;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
         nav {
-            background: #2c3e50;
+            background: var(--bg-dark);
             padding: 1rem 2rem;
             display: flex;
             gap: 2rem;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
+
         nav a {
-            color: white;
+            color: #fff;
             text-decoration: none;
             font-weight: 500;
+            font-size: 0.9rem;
+            transition: color 0.2s;
         }
+
         nav a:hover {
-            color: #3498db;
+            color: var(--accent-teal);
         }
+
         nav .brand {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.03em;
         }
+
+        nav .upload-btn {
+            background: var(--accent-teal);
+            color: var(--bg-dark) !important;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        nav .upload-btn:hover {
+            background: #3dbdb5;
+            color: var(--bg-dark) !important;
+        }
+
         .container {
             max-width: 1200px;
             margin: 2rem auto;
-            padding: 0 1rem;
+            padding: 0 1.5rem;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: -0.03em;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            color: var(--text-primary);
             margin-bottom: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
         }
+
+        h3 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+        }
+
         .card {
-            background: white;
-            border-radius: 8px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
+
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 1rem;
             margin-bottom: 2rem;
         }
+
         .stat-card {
-            background: white;
-            border-radius: 8px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
             padding: 1.5rem;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
         }
+
         .stat-card .number {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #3498db;
+            color: var(--bg-dark);
         }
+
         .stat-card .label {
-            color: #666;
-            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
         }
+
         th, td {
-            padding: 0.75rem;
+            padding: 0.875rem 0.75rem;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border);
         }
+
         th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #2c3e50;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
+
         tr:hover {
-            background: #f8f9fa;
+            background: var(--bg-primary);
         }
+
         .btn {
             display: inline-block;
-            padding: 0.5rem 1rem;
-            background: #3498db;
-            color: white;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-dark);
+            color: #fff;
             text-decoration: none;
-            border-radius: 4px;
+            border-radius: 6px;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            transition: all 0.2s;
         }
+
         .btn:hover {
-            background: #2980b9;
+            background: #2d2d4a;
+            transform: translateY(-1px);
         }
+
         .btn-success {
-            background: #27ae60;
+            background: var(--accent-teal);
+            color: var(--bg-dark);
         }
+
         .btn-success:hover {
-            background: #219a52;
+            background: #3dbdb5;
         }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--bg-dark);
+            color: var(--bg-dark);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-dark);
+            color: #fff;
+        }
+
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
+
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--text-secondary);
         }
+
         .form-group input,
         .form-group select {
             width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
             font-size: 1rem;
+            font-family: inherit;
+            background: var(--bg-secondary);
+            transition: border-color 0.2s;
         }
+
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
-            border-color: #3498db;
+            border-color: var(--accent-teal);
         }
+
         .flash {
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
         }
+
         .flash.success {
             background: #d4edda;
             color: #155724;
+            border: 1px solid #c3e6cb;
         }
+
         .flash.error {
             background: #f8d7da;
             color: #721c24;
+            border: 1px solid #f5c6cb;
         }
+
         .badge {
             display: inline-block;
-            padding: 0.25rem 0.5rem;
+            padding: 0.25rem 0.625rem;
             border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 500;
+            font-size: 0.7rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
+
         .badge-success {
             background: #d4edda;
             color: #155724;
         }
+
         .badge-warning {
             background: #fff3cd;
             color: #856404;
         }
+
         .badge-danger {
             background: #f8d7da;
             color: #721c24;
         }
+
         .detail-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
         }
+
         .detail-item {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
+
         .detail-item .label {
-            color: #666;
-            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
         }
+
         .detail-item .value {
-            font-weight: 500;
-            font-size: 1.1rem;
+            font-weight: 600;
+            font-size: 1.05rem;
         }
+
         a {
-            color: #3498db;
+            color: var(--accent-teal);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Alert cards */
+        .alert-card {
+            border-left: 4px solid;
+            margin-bottom: 1.5rem;
+        }
+
+        .alert-card.danger {
+            border-left-color: var(--error);
+            background: #fff5f5;
+        }
+
+        .alert-card.warning {
+            border-left-color: var(--warning);
+            background: #fffbeb;
+        }
+
+        .alert-card h2 {
+            color: inherit;
+        }
+
+        /* Code-like elements */
+        .mono {
+            font-family: 'Space Mono', monospace;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            nav .upload-btn {
+                margin-left: 0;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            .stat-card .number {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
     <nav>
-        <a href="{{ url_for('index') }}" class="brand">Landlord Command Centre</a>
+        <a href="{{ url_for('index') }}" class="brand">LANDLORD COMMAND CENTRE</a>
         <a href="{{ url_for('properties') }}">Properties</a>
         <a href="{{ url_for('tenancies') }}">Tenancies</a>
         <a href="{{ url_for('timeline') }}">Timeline</a>
-        <a href="{{ url_for('upload_tenancy') }}" style="background: #27ae60; padding: 0.5rem 1rem; border-radius: 4px;">+ Upload PDF</a>
+        <a href="{{ url_for('upload_tenancy') }}" class="upload-btn">+ Upload PDF</a>
     </nav>
 
     <div class="container">
