@@ -1,13 +1,9 @@
-run = "pip install -q -r requirements.txt && python main.py --help"
+modules = ["python-3.11"]
+run = "pip install -r requirements.txt && python main.py --help"
 entrypoint = "main.py"
-modules = ["python-3.10"]
 
 [nix]
-channel = "stable-23_11"
+channel = "stable-24_05"
 
 [deployment]
-run = ["python", "main.py"]
-
-[[ports]]
-localPort = 8080
-externalPort = 80
+run = ["python", "main.py", "--help"]
