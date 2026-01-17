@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Add Tenancy - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Add Tenancy</h1>
+
+<div class="card" style="max-width: 500px;">
+    {% if not properties %}
+        <p style="color: #666;">
+            You need to <a href="{{ url_for('add_property') }}">add a property</a> first.
+        </p>
+    {% else %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="property_id">Property</label>
+                <select id="property_id" name="property_id" required>
+                    {% for prop in properties %}
+                    <option value="{{ prop.id }}" {% if request.args.get('property_id') == prop.id|string %}selected{% endif %}>
+                        {{ prop.address }}, {{ prop.postcode }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tenant_names">Tenant Name(s)</label>
+                <input type="text" id="tenant_names" name="tenant_names" required placeholder="John Smith">
+            </div>
+
+            <div class="form-group">
+                <label for="tenancy_start_date">Start Date</label>
+                <input type="date" id="tenancy_start_date" name="tenancy_start_date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="fixed_term_end_date">Fixed Term End Date (optional)</label>
+                <input type="date" id="fixed_term_end_date" name="fixed_term_end_date">
+            </div>
+
+            <div class="form-group">
+                <label for="rent_amount">Rent Amount (£)</label>
+                <input type="number" id="rent_amount" name="rent_amount" required step="0.01" min="0" placeholder="1200">
+            </div>
+
+            <div class="form-group">
+                <label for="rent_frequency">Rent Frequency</label>
+                <select id="rent_frequency" name="rent_frequency" required>
+                    {% for rf in rent_frequencies %}
+                    <option value="{{ rf.value }}" {% if rf.value == 'monthly' %}selected{% endif %}>
+                        {{ rf.value | capitalize }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="deposit_amount">Deposit Amount (£)</label>
+                <input type="number" id="deposit_amount" name="deposit_amount" step="0.01" min="0" placeholder="1200">
+            </div>
+
+            <button type="submit" class="btn btn-success">Add Tenancy</button>
+            <a href="{{ url_for('tenancies') }}" style="margin-left: 1rem;">Cancel</a>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

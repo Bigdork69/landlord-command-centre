@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ property.address }} - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>{{ property.address }}</h1>
+
+<div class="detail-grid">
+    <div class="card">
+        <h2>Property Details</h2>
+        <div class="detail-item">
+            <div class="label">Address</div>
+            <div class="value">{{ property.address }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Postcode</div>
+            <div class="value">{{ property.postcode }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Type</div>
+            <div class="value">{{ property.property_type.value | capitalize }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Added</div>
+            <div class="value">{{ property.created_at.strftime('%Y-%m-%d') }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Tenancies</h2>
+            <a href="{{ url_for('add_tenancy') }}?property_id={{ property.id }}" class="btn">+ Add</a>
+        </div>
+        {% if tenancies %}
+            <table>
+                <tr>
+                    <th>Tenant</th>
+                    <th>Status</th>
+                    <th>Rent</th>
+                </tr>
+                {% for t in tenancies %}
+                <tr>
+                    <td><a href="{{ url_for('tenancy_detail', tenancy_id=t.id) }}">{{ t.tenant_names }}</a></td>
+                    <td>
+                        {% if t.is_active %}
+                            <span class="badge badge-success">Active</span>
+                        {% else %}
+                            <span class="badge badge-warning">Ended</span>
+                        {% endif %}
+                    </td>
+                    <td>£{{ "{:,.2f}".format(t.rent_amount) }}/{{ t.rent_frequency.value[:3] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p style="color: #666;">No tenancies yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

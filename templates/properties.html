@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Properties - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <h1>Properties</h1>
+    <a href="{{ url_for('add_property') }}" class="btn btn-success">+ Add Property</a>
+</div>
+
+<div class="card">
+    {% if properties %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Address</th>
+                    <th>Postcode</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prop in properties %}
+                <tr>
+                    <td>{{ prop.id }}</td>
+                    <td>{{ prop.address }}</td>
+                    <td>{{ prop.postcode }}</td>
+                    <td>{{ prop.property_type.value | capitalize }}</td>
+                    <td>
+                        <a href="{{ url_for('property_detail', property_id=prop.id) }}">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="text-align: center; color: #666; padding: 2rem;">
+            No properties yet. <a href="{{ url_for('add_property') }}">Add your first property</a>
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

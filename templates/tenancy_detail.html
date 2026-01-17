@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tenancy.tenant_names }} - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Tenancy #{{ tenancy.id }}</h1>
+
+<div class="detail-grid">
+    <div class="card">
+        <h2>Tenant Details</h2>
+        <div class="detail-item">
+            <div class="label">Tenant(s)</div>
+            <div class="value">{{ tenancy.tenant_names }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Property</div>
+            <div class="value">
+                {% if property %}
+                    <a href="{{ url_for('property_detail', property_id=property.id) }}">
+                        {{ property.address }}, {{ property.postcode }}
+                    </a>
+                {% else %}
+                    Property #{{ tenancy.property_id }}
+                {% endif %}
+            </div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Status</div>
+            <div class="value">
+                {% if tenancy.is_active %}
+                    <span class="badge badge-success">Active</span>
+                {% else %}
+                    <span class="badge badge-warning">Ended</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Tenancy Dates</h2>
+        <div class="detail-item">
+            <div class="label">Start Date</div>
+            <div class="value">{{ tenancy.tenancy_start_date }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Fixed Term End</div>
+            <div class="value">{{ tenancy.fixed_term_end_date or 'Periodic' }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Type</div>
+            <div class="value">{{ 'Periodic' if tenancy.is_periodic else 'Fixed Term' }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Rent & Deposit</h2>
+        <div class="detail-item">
+            <div class="label">Rent</div>
+            <div class="value">£{{ "{:,.2f}".format(tenancy.rent_amount) }} {{ tenancy.rent_frequency.value }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Weekly Equivalent</div>
+            <div class="value">£{{ "{:,.2f}".format(tenancy.weekly_rent) }}</div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Deposit</div>
+            <div class="value">£{{ "{:,.2f}".format(tenancy.deposit_amount) }}</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Compliance Status</h2>
+        <div class="detail-item">
+            <div class="label">Deposit Protected</div>
+            <div class="value">
+                {% if tenancy.deposit_protected %}
+                    <span class="badge badge-success">Yes</span>
+                    {% if tenancy.deposit_protection_date %}
+                        ({{ tenancy.deposit_protection_date }})
+                    {% endif %}
+                {% else %}
+                    <span class="badge badge-danger">No</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="detail-item">
+            <div class="label">Prescribed Info Served</div>
+            <div class="value">
+                {% if tenancy.prescribed_info_served %}
+                    <span class="badge badge-success">Yes</span>
+                {% else %}
+                    <span class="badge badge-danger">No</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="detail-item">
+            <div class="label">How to Rent Served</div>
+            <div class="value">
+                {% if tenancy.how_to_rent_served %}
+                    <span class="badge badge-success">Yes</span>
+                {% else %}
+                    <span class="badge badge-danger">No</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

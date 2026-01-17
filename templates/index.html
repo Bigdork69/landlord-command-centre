@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="number">{{ property_count }}</div>
+        <div class="label">Properties</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ tenancy_count }}</div>
+        <div class="label">Active Tenancies</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">£{{ "{:,.2f}".format(total_rent) }}</div>
+        <div class="label">Monthly Rent</div>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div class="card">
+        <h2>Quick Actions</h2>
+        <p style="margin-bottom: 1rem;">
+            <a href="{{ url_for('add_property') }}" class="btn btn-success">+ Add Property</a>
+        </p>
+        <p>
+            <a href="{{ url_for('add_tenancy') }}" class="btn btn-success">+ Add Tenancy</a>
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>Recent Properties</h2>
+        {% if properties %}
+            <table>
+                <tr>
+                    <th>Address</th>
+                    <th>Postcode</th>
+                </tr>
+                {% for prop in properties[:5] %}
+                <tr>
+                    <td><a href="{{ url_for('property_detail', property_id=prop.id) }}">{{ prop.address }}</a></td>
+                    <td>{{ prop.postcode }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% else %}
+            <p style="color: #666;">No properties yet. <a href="{{ url_for('add_property') }}">Add one</a></p>
+        {% endif %}
+    </div>
+</div>
+
+{% if tenancies %}
+<div class="card">
+    <h2>Active Tenancies</h2>
+    <table>
+        <tr>
+            <th>Tenant</th>
+            <th>Property</th>
+            <th>Rent</th>
+            <th>Start Date</th>
+        </tr>
+        {% for t in tenancies[:10] %}
+        <tr>
+            <td><a href="{{ url_for('tenancy_detail', tenancy_id=t.id) }}">{{ t.tenant_names }}</a></td>
+            <td>{{ t.property_id }}</td>
+            <td>£{{ "{:,.2f}".format(t.rent_amount) }}/{{ t.rent_frequency.value[:3] }}</td>
+            <td>{{ t.tenancy_start_date }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+{% endblock %}

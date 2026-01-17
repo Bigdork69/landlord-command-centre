@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Tenancies - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <h1>Tenancies</h1>
+    <a href="{{ url_for('add_tenancy') }}" class="btn btn-success">+ Add Tenancy</a>
+</div>
+
+<div class="card">
+    {% if tenancies %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tenant(s)</th>
+                    <th>Property</th>
+                    <th>Rent</th>
+                    <th>Start Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in tenancies %}
+                <tr>
+                    <td>{{ item.tenancy.id }}</td>
+                    <td>{{ item.tenancy.tenant_names }}</td>
+                    <td>
+                        {% if item.property %}
+                            <a href="{{ url_for('property_detail', property_id=item.property.id) }}">
+                                {{ item.property.address[:30] }}
+                            </a>
+                        {% else %}
+                            #{{ item.tenancy.property_id }}
+                        {% endif %}
+                    </td>
+                    <td>£{{ "{:,.2f}".format(item.tenancy.rent_amount) }}/{{ item.tenancy.rent_frequency.value[:3] }}</td>
+                    <td>{{ item.tenancy.tenancy_start_date }}</td>
+                    <td>
+                        {% if item.tenancy.is_active %}
+                            <span class="badge badge-success">Active</span>
+                        {% else %}
+                            <span class="badge badge-warning">Ended</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('tenancy_detail', tenancy_id=item.tenancy.id) }}">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="text-align: center; color: #666; padding: 2rem;">
+            No tenancies yet. <a href="{{ url_for('add_tenancy') }}">Add your first tenancy</a>
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

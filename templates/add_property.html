@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Add Property - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Add Property</h1>
+
+<div class="card" style="max-width: 500px;">
+    <form method="POST">
+        <div class="form-group">
+            <label for="address">Address</label>
+            <input type="text" id="address" name="address" required placeholder="123 High Street">
+        </div>
+
+        <div class="form-group">
+            <label for="postcode">Postcode</label>
+            <input type="text" id="postcode" name="postcode" required placeholder="SW1A 1AA">
+        </div>
+
+        <div class="form-group">
+            <label for="property_type">Property Type</label>
+            <select id="property_type" name="property_type" required>
+                {% for pt in property_types %}
+                <option value="{{ pt.value }}">{{ pt.value | capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-success">Add Property</button>
+        <a href="{{ url_for('properties') }}" style="margin-left: 1rem;">Cancel</a>
+    </form>
+</div>
+{% endblock %}
