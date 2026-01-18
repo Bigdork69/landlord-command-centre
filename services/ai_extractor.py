@@ -14,7 +14,7 @@ EXTRACTION_PROMPT = """You are an expert at extracting information from UK tenan
 Extract the following fields from this tenancy agreement text. Return ONLY valid JSON, no other text.
 
 Required JSON format:
-{
+{{
     "tenant_names": "Full name(s) of tenant(s), comma-separated if multiple",
     "property_address": "Full property address without postcode",
     "postcode": "UK postcode (e.g., SW1A 1AA)",
@@ -23,7 +23,7 @@ Required JSON format:
     "rent_amount": numeric value only (e.g., 1200.00),
     "rent_frequency": "weekly" or "monthly" or "annually",
     "deposit_amount": numeric value only (e.g., 1200.00) or null if not mentioned
-}
+}}
 
 If a field cannot be found, use null. For dates, convert any format to YYYY-MM-DD.
 For amounts, extract just the number without currency symbols.
