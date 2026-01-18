@@ -3,7 +3,19 @@
 {% block title %}{{ tenancy.tenant_names }} - Landlord Command Centre{% endblock %}
 
 {% block content %}
-<h1>Tenancy #{{ tenancy.id }}</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h1 style="margin: 0;">Tenancy: {{ tenancy.tenant_names }}</h1>
+    <div style="display: flex; gap: 0.5rem;">
+        {% if property %}
+        <a href="{{ url_for('property_detail', property_id=property.id) }}" class="btn" style="background: #666;">&larr; Back to Property</a>
+        {% endif %}
+        <form action="{{ url_for('delete_tenancy', tenancy_id=tenancy.id) }}" method="post"
+              onsubmit="return confirm('Delete this tenancy and all its compliance events? This cannot be undone.');"
+              style="margin: 0;">
+            <button type="submit" class="btn" style="background: #dc3545;">Delete Tenancy</button>
+        </form>
+    </div>
+</div>
 
 <div class="detail-grid">
     <div class="card">

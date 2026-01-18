@@ -5,7 +5,14 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
     <h1 style="margin: 0;">{{ property.address }}</h1>
-    <a href="{{ url_for('properties') }}" class="btn" style="background: #666;">&larr; Back to Properties</a>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{{ url_for('properties') }}" class="btn" style="background: #666;">&larr; Back</a>
+        <form action="{{ url_for('delete_property', property_id=property.id) }}" method="post"
+              onsubmit="return confirm('Delete this property and ALL associated tenancies, certificates, and compliance events? This cannot be undone.');"
+              style="margin: 0;">
+            <button type="submit" class="btn btn-danger">Delete Property</button>
+        </form>
+    </div>
 </div>
 
 <div class="detail-grid">
@@ -65,6 +72,14 @@
                 <div class="value">{{ t.fixed_term_end_date.strftime('%d %b %Y') }}</div>
             </div>
             {% endif %}
+            <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <a href="{{ url_for('tenancy_detail', tenancy_id=t.id) }}" class="btn btn-small">View Details</a>
+                <form action="{{ url_for('delete_tenancy', tenancy_id=t.id) }}" method="post"
+                      onsubmit="return confirm('Delete this tenancy and all its compliance events?');"
+                      style="margin: 0;">
+                    <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                </form>
+            </div>
             {% endfor %}
         {% else %}
             <p style="color: #666; margin-bottom: 1rem;">No tenancy agreement uploaded yet.</p>
@@ -266,6 +281,15 @@
 .btn-small {
     padding: 0.4rem 0.8rem;
     font-size: 0.85rem;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
 }
 
 .epc-rating {

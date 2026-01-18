@@ -141,6 +141,21 @@ def property_detail(property_id: int):
     )
 
 
+@app.route("/properties/<int:property_id>/delete", methods=["POST"])
+def delete_property(property_id: int):
+    """Delete a property and all associated data."""
+    db = get_db()
+    prop = db.get_property(property_id)
+    if not prop:
+        flash("Property not found", "error")
+        return redirect(url_for("properties"))
+
+    address = prop.address
+    db.delete_property(property_id)
+    flash(f"Property '{address}' and all associated data deleted", "success")
+    return redirect(url_for("properties"))
+
+
 @app.route("/properties/<int:property_id>/upload-certificate", methods=["POST"])
 def upload_certificate(property_id: int):
     """Upload and parse a compliance certificate PDF."""
@@ -430,6 +445,22 @@ def tenancy_detail(tenancy_id: int):
         EventStatus=EventStatus,
         EventPriority=EventPriority,
     )
+
+
+@app.route("/tenancies/<int:tenancy_id>/delete", methods=["POST"])
+def delete_tenancy(tenancy_id: int):
+    """Delete a tenancy and its associated compliance events."""
+    db = get_db()
+    tenancy = db.get_tenancy(tenancy_id)
+    if not tenancy:
+        flash("Tenancy not found", "error")
+        return redirect(url_for("tenancies"))
+
+    property_id = tenancy.property_id
+    tenant_name = tenancy.tenant_names
+    db.delete_tenancy(tenancy_id)
+    flash(f"Tenancy for '{tenant_name}' deleted", "success")
+    return redirect(url_for("property_detail", property_id=property_id))
 
 
 @app.route("/timeline")

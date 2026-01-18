@@ -539,6 +539,60 @@ class Database:
                 (tenancy_id,),
             )
 
+    def delete_events_for_property(self, property_id: int) -> None:
+        """Delete all compliance events for a property."""
+        with self.connection() as conn:
+            conn.execute(
+                "DELETE FROM compliance_events WHERE property_id = ?",
+                (property_id,),
+            )
+
+    def delete_tenancy(self, tenancy_id: int) -> None:
+        """Delete a tenancy and its associated events."""
+        with self.connection() as conn:
+            # Delete associated events first
+            conn.execute(
+                "DELETE FROM compliance_events WHERE tenancy_id = ?",
+                (tenancy_id,),
+            )
+            # Delete the tenancy
+            conn.execute(
+                "DELETE FROM tenancies WHERE id = ?",
+                (tenancy_id,),
+            )
+
+    def delete_certificates_for_property(self, property_id: int) -> None:
+        """Delete all certificates for a property."""
+        with self.connection() as conn:
+            conn.execute(
+                "DELETE FROM certificates WHERE property_id = ?",
+                (property_id,),
+            )
+
+    def delete_property(self, property_id: int) -> None:
+        """Delete a property and all associated data."""
+        with self.connection() as conn:
+            # Delete associated events
+            conn.execute(
+                "DELETE FROM compliance_events WHERE property_id = ?",
+                (property_id,),
+            )
+            # Delete associated tenancies
+            conn.execute(
+                "DELETE FROM tenancies WHERE property_id = ?",
+                (property_id,),
+            )
+            # Delete associated certificates
+            conn.execute(
+                "DELETE FROM certificates WHERE property_id = ?",
+                (property_id,),
+            )
+            # Delete the property
+            conn.execute(
+                "DELETE FROM properties WHERE id = ?",
+                (property_id,),
+            )
+
     def _row_to_event(self, row: sqlite3.Row) -> ComplianceEvent:
         """Convert database row to ComplianceEvent object."""
         return ComplianceEvent(
