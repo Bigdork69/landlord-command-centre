@@ -35,8 +35,9 @@ class Config:
         # Log level
         self.log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
-        # Optional API key for future AI features
+        # Optional API keys for AI features
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        self.groq_api_key = os.getenv("GROQ_API_KEY", "")
 
     @property
     def database_dir(self) -> Path:
