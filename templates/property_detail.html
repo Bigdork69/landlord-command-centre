@@ -3,9 +3,13 @@
 {% block title %}{{ property.address }} - Landlord Command Centre{% endblock %}
 
 {% block content %}
-<h1>{{ property.address }}</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <h1 style="margin: 0;">{{ property.address }}</h1>
+    <a href="{{ url_for('properties') }}" class="btn" style="background: #666;">&larr; Back to Properties</a>
+</div>
 
 <div class="detail-grid">
+    <!-- Property Info -->
     <div class="card">
         <h2>Property Details</h2>
         <div class="detail-item">
@@ -26,35 +30,276 @@
         </div>
     </div>
 
+    <!-- Tenancy Section -->
     <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Tenancies</h2>
-            <a href="{{ url_for('add_tenancy') }}?property_id={{ property.id }}" class="btn">+ Add</a>
+            <h2>Tenancy</h2>
         </div>
         {% if tenancies %}
-            <table>
-                <tr>
-                    <th>Tenant</th>
-                    <th>Status</th>
-                    <th>Rent</th>
-                </tr>
-                {% for t in tenancies %}
-                <tr>
-                    <td><a href="{{ url_for('tenancy_detail', tenancy_id=t.id) }}">{{ t.tenant_names }}</a></td>
-                    <td>
-                        {% if t.is_active %}
-                            <span class="badge badge-success">Active</span>
-                        {% else %}
-                            <span class="badge badge-warning">Ended</span>
-                        {% endif %}
-                    </td>
-                    <td>£{{ "{:,.2f}".format(t.rent_amount) }}/{{ t.rent_frequency.value[:3] }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+            {% for t in tenancies %}
+            <div class="detail-item">
+                <div class="label">Tenant</div>
+                <div class="value"><a href="{{ url_for('tenancy_detail', tenancy_id=t.id) }}">{{ t.tenant_names }}</a></div>
+            </div>
+            <div class="detail-item">
+                <div class="label">Status</div>
+                <div class="value">
+                    {% if t.is_active %}
+                        <span class="badge badge-success">Active</span>
+                    {% else %}
+                        <span class="badge badge-warning">Ended</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="detail-item">
+                <div class="label">Rent</div>
+                <div class="value">£{{ "{:,.2f}".format(t.rent_amount) }}/{{ t.rent_frequency.value[:3] }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="label">Start Date</div>
+                <div class="value">{{ t.tenancy_start_date.strftime('%d %b %Y') if t.tenancy_start_date else 'Not set' }}</div>
+            </div>
+            {% if t.fixed_term_end_date %}
+            <div class="detail-item">
+                <div class="label">Fixed Term Ends</div>
+                <div class="value">{{ t.fixed_term_end_date.strftime('%d %b %Y') }}</div>
+            </div>
+            {% endif %}
+            {% endfor %}
         {% else %}
-            <p style="color: #666;">No tenancies yet.</p>
+            <p style="color: #666; margin-bottom: 1rem;">No tenancy agreement uploaded yet.</p>
+            <a href="{{ url_for('upload_tenancy') }}?property_id={{ property.id }}" class="btn">Upload Tenancy Agreement (PDF)</a>
         {% endif %}
     </div>
 </div>
+
+<!-- Documents Section -->
+<div class="card" style="margin-top: 1.5rem;">
+    <h2>Compliance Documents</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Upload certificates to automatically track renewal deadlines.</p>
+
+    <div class="document-grid">
+        <!-- Gas Safety Certificate -->
+        <div class="document-card">
+            <div class="document-icon">🔥</div>
+            <h3>Gas Safety Certificate</h3>
+            <p>Required annually for all properties with gas.</p>
+            {% if certificates.gas_safety %}
+                <div class="document-status valid">
+                    <strong>Valid until:</strong> {{ certificates.gas_safety.expiry_date.strftime('%d %b %Y') }}
+                </div>
+                <p style="font-size: 0.85rem; color: #666;">
+                    Issued: {{ certificates.gas_safety.issue_date.strftime('%d %b %Y') }}
+                </p>
+            {% else %}
+                <div class="document-status missing">Not uploaded</div>
+            {% endif %}
+            <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post" enctype="multipart/form-data" class="upload-form">
+                <input type="hidden" name="cert_type" value="gas_safety">
+                <input type="file" name="file" accept=".pdf" required>
+                <button type="submit" class="btn btn-small">Upload</button>
+            </form>
+        </div>
+
+        <!-- EICR -->
+        <div class="document-card">
+            <div class="document-icon">⚡</div>
+            <h3>EICR</h3>
+            <p>Electrical Installation Condition Report. Valid for 5 years.</p>
+            {% if certificates.eicr %}
+                <div class="document-status valid">
+                    <strong>Valid until:</strong> {{ certificates.eicr.expiry_date.strftime('%d %b %Y') }}
+                </div>
+                <p style="font-size: 0.85rem; color: #666;">
+                    Issued: {{ certificates.eicr.issue_date.strftime('%d %b %Y') }}
+                </p>
+            {% else %}
+                <div class="document-status missing">Not uploaded</div>
+            {% endif %}
+            <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post" enctype="multipart/form-data" class="upload-form">
+                <input type="hidden" name="cert_type" value="eicr">
+                <input type="file" name="file" accept=".pdf" required>
+                <button type="submit" class="btn btn-small">Upload</button>
+            </form>
+        </div>
+
+        <!-- EPC -->
+        <div class="document-card">
+            <div class="document-icon">🏠</div>
+            <h3>EPC</h3>
+            <p>Energy Performance Certificate. Valid for 10 years.</p>
+            {% if certificates.epc %}
+                <div class="document-status valid">
+                    <strong>Valid until:</strong> {{ certificates.epc.expiry_date.strftime('%d %b %Y') }}
+                    {% if certificates.epc.rating %}
+                        <span class="epc-rating rating-{{ certificates.epc.rating }}">{{ certificates.epc.rating }}</span>
+                    {% endif %}
+                </div>
+                <p style="font-size: 0.85rem; color: #666;">
+                    Issued: {{ certificates.epc.issue_date.strftime('%d %b %Y') }}
+                </p>
+            {% else %}
+                <div class="document-status missing">Not uploaded</div>
+            {% endif %}
+            <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post" enctype="multipart/form-data" class="upload-form">
+                <input type="hidden" name="cert_type" value="epc">
+                <input type="file" name="file" accept=".pdf" required>
+                <button type="submit" class="btn btn-small">Upload</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline Section -->
+{% if events %}
+<div class="card" style="margin-top: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Compliance Timeline</h2>
+        <a href="{{ url_for('timeline') }}?property_id={{ property.id }}" class="btn btn-small">View Full Timeline</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Due Date</th>
+                <th>Task</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events[:10] %}
+            <tr class="{% if event.status == EventStatus.OVERDUE %}overdue{% elif event.status == EventStatus.COMPLETED %}completed{% endif %}">
+                <td>
+                    {{ event.due_date.strftime('%d %b %Y') }}
+                    {% if event.status == EventStatus.OVERDUE %}
+                        <span class="badge badge-danger">Overdue</span>
+                    {% elif (event.due_date - today).days <= 7 %}
+                        <span class="badge badge-warning">Soon</span>
+                    {% endif %}
+                </td>
+                <td>{{ event.event_name }}</td>
+                <td>
+                    <span class="priority priority-{{ event.priority.value }}">{{ event.priority.value }}</span>
+                </td>
+                <td>
+                    {% if event.status == EventStatus.COMPLETED %}
+                        <span class="badge badge-success">Done</span>
+                    {% else %}
+                        <span class="badge">Pending</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.status != EventStatus.COMPLETED %}
+                    <form action="{{ url_for('complete_event', event_id=event.id) }}" method="post" style="margin: 0;">
+                        <button type="submit" class="btn btn-small">✓ Done</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<style>
+.document-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.document-card {
+    background: #f8f5f2;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e8e5e2;
+}
+
+.document-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.document-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #1a1a2e;
+}
+
+.document-card p {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.document-status {
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.document-status.valid {
+    background: #d4edda;
+    color: #155724;
+}
+
+.document-status.missing {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.upload-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.upload-form input[type="file"] {
+    flex: 1;
+    font-size: 0.85rem;
+}
+
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+.epc-rating {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-left: 0.5rem;
+}
+
+.rating-A, .rating-B { background: #1e8e3e; color: white; }
+.rating-C { background: #34a853; color: white; }
+.rating-D { background: #fbbc04; color: black; }
+.rating-E { background: #fa903e; color: black; }
+.rating-F, .rating-G { background: #ea4335; color: white; }
+
+tr.overdue {
+    background: #fff5f5;
+}
+
+tr.completed {
+    opacity: 0.6;
+}
+
+.priority {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.priority-critical { background: #dc3545; color: white; }
+.priority-high { background: #fd7e14; color: white; }
+.priority-medium { background: #ffc107; color: black; }
+.priority-low { background: #6c757d; color: white; }
+</style>
 {% endblock %}

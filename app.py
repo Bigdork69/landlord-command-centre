@@ -10,8 +10,11 @@ from werkzeug.utils import secure_filename
 
 from config import get_config
 from database import Database
-from models import EventPriority, EventStatus, Property, PropertyType, RentFrequency, Tenancy
+from models import Certificate, CertificateType, EventPriority, EventStatus, Property, PropertyType, RentFrequency, Tenancy
 from parsers.tenancy import TenancyParser
+from parsers.gas_safety import GasSafetyParser
+from parsers.eicr import EICRParser
+from parsers.epc import EPCParser
 from services.timeline import TimelineGenerator
 
 app = Flask(__name__)
@@ -95,7 +98,7 @@ def add_property():
 
 @app.route("/properties/<int:property_id>")
 def property_detail(property_id: int):
-    """Show property details."""
+    """Show property details with documents and timeline."""
     db = get_db()
     prop = db.get_property(property_id)
     if not prop:
@@ -103,7 +106,143 @@ def property_detail(property_id: int):
         return redirect(url_for("properties"))
 
     tenancies = db.list_tenancies_for_property(property_id)
-    return render_template("property_detail.html", property=prop, tenancies=tenancies)
+
+    # Get certificates
+    certificates = {
+        'gas_safety': db.get_latest_certificate(property_id, CertificateType.GAS_SAFETY),
+        'eicr': db.get_latest_certificate(property_id, CertificateType.EICR),
+        'epc': db.get_latest_certificate(property_id, CertificateType.EPC),
+    }
+
+    # Add rating to EPC certificate for template display
+    if certificates['epc'] and certificates['epc'].notes:
+        # Rating stored in notes as "Rating: X"
+        import re
+        rating_match = re.search(r'Rating:\s*([A-G])', certificates['epc'].notes)
+        if rating_match:
+            certificates['epc'].rating = rating_match.group(1)
+        else:
+            certificates['epc'].rating = None
+    elif certificates['epc']:
+        certificates['epc'].rating = None
+
+    # Get compliance events for this property
+    events = db.list_events(property_id=property_id)
+
+    return render_template(
+        "property_detail.html",
+        property=prop,
+        tenancies=tenancies,
+        certificates=certificates,
+        events=events,
+        today=date.today(),
+        EventStatus=EventStatus,
+        EventPriority=EventPriority,
+    )
+
+
+@app.route("/properties/<int:property_id>/upload-certificate", methods=["POST"])
+def upload_certificate(property_id: int):
+    """Upload and parse a compliance certificate PDF."""
+    db = get_db()
+    prop = db.get_property(property_id)
+    if not prop:
+        flash("Property not found", "error")
+        return redirect(url_for("properties"))
+
+    # Check file uploaded
+    if "file" not in request.files:
+        flash("No file uploaded", "error")
+        return redirect(url_for("property_detail", property_id=property_id))
+
+    file = request.files["file"]
+    if file.filename == "":
+        flash("No file selected", "error")
+        return redirect(url_for("property_detail", property_id=property_id))
+
+    cert_type = request.form.get("cert_type", "gas_safety")
+
+    if file and allowed_file(file.filename):
+        # Save file
+        UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+        filename = secure_filename(file.filename)
+        filepath = UPLOAD_FOLDER / f"{cert_type}_{property_id}_{filename}"
+        file.save(filepath)
+
+        try:
+            # Select parser based on certificate type
+            parsers = {
+                'gas_safety': GasSafetyParser(),
+                'eicr': EICRParser(),
+                'epc': EPCParser(),
+            }
+            parser = parsers.get(cert_type)
+            if not parser:
+                flash(f"Unknown certificate type: {cert_type}", "error")
+                return redirect(url_for("property_detail", property_id=property_id))
+
+            # Parse the PDF
+            result = parser.parse(filepath)
+
+            # Get extracted dates
+            issue_date = result.extracted_fields.get('issue_date')
+            expiry_date = result.extracted_fields.get('expiry_date')
+
+            # Build notes with extra info
+            notes_parts = []
+            if cert_type == 'epc':
+                rating = result.extracted_fields.get('rating')
+                if rating:
+                    notes_parts.append(f"Rating: {rating}")
+                score = result.extracted_fields.get('score')
+                if score:
+                    notes_parts.append(f"Score: {score}")
+            if cert_type == 'gas_safety':
+                gas_safe = result.extracted_fields.get('gas_safe_number')
+                if gas_safe:
+                    notes_parts.append(f"Gas Safe: {gas_safe}")
+            if cert_type == 'eicr':
+                satisfactory = result.extracted_fields.get('satisfactory')
+                if satisfactory is not None:
+                    notes_parts.append(f"Satisfactory: {'Yes' if satisfactory else 'NO - REMEDIAL WORK REQUIRED'}")
+
+            # Create certificate record
+            cert_type_map = {
+                'gas_safety': CertificateType.GAS_SAFETY,
+                'eicr': CertificateType.EICR,
+                'epc': CertificateType.EPC,
+            }
+
+            cert = Certificate(
+                property_id=property_id,
+                certificate_type=cert_type_map[cert_type],
+                issue_date=issue_date,
+                expiry_date=expiry_date,
+                document_path=str(filepath),
+                notes="; ".join(notes_parts) if notes_parts else "",
+            )
+            cert_id = db.create_certificate(cert)
+
+            # Show warnings if any
+            if result.warnings:
+                for warning in result.warnings[:3]:  # Limit to 3 warnings
+                    flash(warning, "warning")
+
+            if issue_date and expiry_date:
+                flash(f"Certificate uploaded! Valid from {issue_date} to {expiry_date}", "success")
+            elif issue_date:
+                flash(f"Certificate uploaded! Issued {issue_date}. Please verify expiry date.", "warning")
+            else:
+                flash("Certificate uploaded but dates could not be extracted. Please add manually.", "warning")
+
+        except Exception as e:
+            flash(f"Error processing certificate: {e}", "error")
+            filepath.unlink(missing_ok=True)
+
+    else:
+        flash("Only PDF files are allowed", "error")
+
+    return redirect(url_for("property_detail", property_id=property_id))
 
 
 @app.route("/tenancies")
