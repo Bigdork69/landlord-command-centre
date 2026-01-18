@@ -45,8 +45,13 @@
                             <span class="badge badge-warning">Ended</span>
                         {% endif %}
                     </td>
-                    <td>
-                        <a href="{{ url_for('tenancy_detail', tenancy_id=item.tenancy.id) }}">View</a>
+                    <td style="display: flex; gap: 0.5rem; align-items: center;">
+                        <a href="{{ url_for('tenancy_detail', tenancy_id=item.tenancy.id) }}" class="action-link">View</a>
+                        <form action="{{ url_for('delete_tenancy', tenancy_id=item.tenancy.id) }}" method="post"
+                              onsubmit="return confirm('Delete this tenancy and its compliance events?');"
+                              style="margin: 0;">
+                            <button type="submit" class="delete-btn" title="Delete tenancy">🗑️</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
@@ -58,4 +63,26 @@
         </p>
     {% endif %}
 </div>
+
+<style>
+.delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.25rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+.delete-btn:hover {
+    opacity: 1;
+}
+.action-link {
+    color: #4ECDC4;
+    text-decoration: none;
+}
+.action-link:hover {
+    text-decoration: underline;
+}
+</style>
 {% endblock %}

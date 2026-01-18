@@ -27,8 +27,13 @@
                     <td>{{ prop.address }}</td>
                     <td>{{ prop.postcode }}</td>
                     <td>{{ prop.property_type.value | capitalize }}</td>
-                    <td>
-                        <a href="{{ url_for('property_detail', property_id=prop.id) }}">View</a>
+                    <td style="display: flex; gap: 0.5rem; align-items: center;">
+                        <a href="{{ url_for('property_detail', property_id=prop.id) }}" class="action-link">View</a>
+                        <form action="{{ url_for('delete_property', property_id=prop.id) }}" method="post"
+                              onsubmit="return confirm('Delete this property and ALL associated data?');"
+                              style="margin: 0;">
+                            <button type="submit" class="delete-btn" title="Delete property">🗑️</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
@@ -40,4 +45,26 @@
         </p>
     {% endif %}
 </div>
+
+<style>
+.delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.25rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+.delete-btn:hover {
+    opacity: 1;
+}
+.action-link {
+    color: #4ECDC4;
+    text-decoration: none;
+}
+.action-link:hover {
+    text-decoration: underline;
+}
+</style>
 {% endblock %}
