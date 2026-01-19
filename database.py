@@ -451,6 +451,34 @@ class Database:
             created_at=self._parse_datetime(row["created_at"]),
         )
 
+    def update_certificate(self, cert_id: int, issue_date=None, expiry_date=None, notes: str = None) -> bool:
+        """Update certificate dates and/or notes."""
+        with self.connection() as conn:
+            updates = []
+            params = []
+
+            if issue_date is not None:
+                updates.append("issue_date = ?")
+                params.append(issue_date.isoformat() if issue_date else None)
+
+            if expiry_date is not None:
+                updates.append("expiry_date = ?")
+                params.append(expiry_date.isoformat() if expiry_date else None)
+
+            if notes is not None:
+                updates.append("notes = ?")
+                params.append(notes)
+
+            if not updates:
+                return False
+
+            params.append(cert_id)
+            conn.execute(
+                f"UPDATE certificates SET {', '.join(updates)} WHERE id = ?",
+                params,
+            )
+            return True
+
     # Compliance Events CRUD operations
 
     def create_event(self, event: ComplianceEvent) -> int:

@@ -273,6 +273,45 @@ def upload_certificate(property_id: int):
     return redirect(url_for("property_detail", property_id=property_id))
 
 
+@app.route("/certificates/<int:cert_id>/update", methods=["POST"])
+def update_certificate(cert_id: int):
+    """Update certificate dates manually."""
+    db = get_db()
+    cert = db.get_certificate(cert_id)
+
+    if not cert:
+        flash("Certificate not found", "error")
+        return redirect(url_for("properties"))
+
+    # Parse dates from form
+    issue_date = None
+    expiry_date = None
+    notes = None
+
+    if request.form.get('issue_date'):
+        from datetime import datetime
+        issue_date = datetime.strptime(request.form['issue_date'], '%Y-%m-%d').date()
+
+    if request.form.get('expiry_date'):
+        from datetime import datetime
+        expiry_date = datetime.strptime(request.form['expiry_date'], '%Y-%m-%d').date()
+
+    # Handle EPC rating
+    if request.form.get('rating'):
+        rating = request.form['rating']
+        existing_notes = cert.notes or ""
+        if "Rating:" in existing_notes:
+            import re
+            notes = re.sub(r'Rating: [A-G]', f'Rating: {rating}', existing_notes)
+        else:
+            notes = f"Rating: {rating}; {existing_notes}" if existing_notes else f"Rating: {rating}"
+
+    db.update_certificate(cert_id, issue_date=issue_date, expiry_date=expiry_date, notes=notes)
+    flash("Certificate dates updated!", "success")
+
+    return redirect(url_for("property_detail", property_id=cert.property_id))
+
+
 @app.route("/tenancies")
 def tenancies():
     """List all tenancies."""

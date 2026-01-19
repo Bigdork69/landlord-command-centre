@@ -148,25 +148,32 @@
                 </div>
                 {% endif %}
             </div>
+
+            {% if not certificates.gas_safety.issue_date or not certificates.gas_safety.expiry_date %}
+            <form action="{{ url_for('update_certificate', cert_id=certificates.gas_safety.id) }}" method="post" class="edit-dates-form">
+                <p class="missing-dates-msg">⚠️ Dates not detected - please enter manually:</p>
+                <div class="date-inputs">
+                    <div class="date-field">
+                        <label>Issue Date</label>
+                        <input type="date" name="issue_date" required>
+                    </div>
+                    <div class="date-field">
+                        <label>Expiry Date</label>
+                        <input type="date" name="expiry_date" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-small btn-primary">Save Dates</button>
+            </form>
+            {% endif %}
         {% else %}
             <p class="empty-message">Required annually for all gas properties</p>
         {% endif %}
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
-              enctype="multipart/form-data" class="upload-form" id="gas_form">
+              enctype="multipart/form-data" class="upload-form">
             <input type="hidden" name="cert_type" value="gas_safety">
-            <div class="date-inputs">
-                <div class="date-field">
-                    <label>Issue Date</label>
-                    <input type="date" name="issue_date">
-                </div>
-                <div class="date-field">
-                    <label>Expiry Date</label>
-                    <input type="date" name="expiry_date">
-                </div>
-            </div>
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="gas_file" onchange="this.form.submit()">
-            <label for="gas_file" class="btn btn-small btn-primary upload-btn-full">📁 Choose File & Upload</label>
+            <label for="gas_file" class="btn btn-small btn-secondary upload-btn-full">📁 {{ 'Upload New' if certificates.gas_safety else 'Choose File & Upload' }}</label>
         </form>
     </div>
 
@@ -199,25 +206,32 @@
                 </div>
                 {% endif %}
             </div>
+
+            {% if not certificates.eicr.issue_date or not certificates.eicr.expiry_date %}
+            <form action="{{ url_for('update_certificate', cert_id=certificates.eicr.id) }}" method="post" class="edit-dates-form">
+                <p class="missing-dates-msg">⚠️ Dates not detected - please enter manually:</p>
+                <div class="date-inputs">
+                    <div class="date-field">
+                        <label>Issue Date</label>
+                        <input type="date" name="issue_date" required>
+                    </div>
+                    <div class="date-field">
+                        <label>Expiry Date</label>
+                        <input type="date" name="expiry_date" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-small btn-primary">Save Dates</button>
+            </form>
+            {% endif %}
         {% else %}
             <p class="empty-message">Electrical safety check - valid for 5 years</p>
         {% endif %}
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
-              enctype="multipart/form-data" class="upload-form" id="eicr_form">
+              enctype="multipart/form-data" class="upload-form">
             <input type="hidden" name="cert_type" value="eicr">
-            <div class="date-inputs">
-                <div class="date-field">
-                    <label>Issue Date</label>
-                    <input type="date" name="issue_date">
-                </div>
-                <div class="date-field">
-                    <label>Expiry Date</label>
-                    <input type="date" name="expiry_date">
-                </div>
-            </div>
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="eicr_file" onchange="this.form.submit()">
-            <label for="eicr_file" class="btn btn-small btn-primary upload-btn-full">📁 Choose File & Upload</label>
+            <label for="eicr_file" class="btn btn-small btn-secondary upload-btn-full">📁 {{ 'Upload New' if certificates.eicr else 'Choose File & Upload' }}</label>
         </form>
     </div>
 
@@ -250,38 +264,45 @@
                     <span><strong>Expires:</strong> {{ certificates.epc.expiry_date.strftime('%d %b %Y') if certificates.epc.expiry_date else 'Not set' }}</span>
                 </div>
             </div>
+
+            {% if not certificates.epc.issue_date or not certificates.epc.expiry_date %}
+            <form action="{{ url_for('update_certificate', cert_id=certificates.epc.id) }}" method="post" class="edit-dates-form">
+                <p class="missing-dates-msg">⚠️ Details not detected - please enter manually:</p>
+                <div class="date-inputs">
+                    <div class="date-field">
+                        <label>Issue Date</label>
+                        <input type="date" name="issue_date" required>
+                    </div>
+                    <div class="date-field">
+                        <label>Expiry Date</label>
+                        <input type="date" name="expiry_date" required>
+                    </div>
+                    <div class="date-field">
+                        <label>Rating</label>
+                        <select name="rating">
+                            <option value="">-</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                            <option value="G">G</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-small btn-primary">Save Details</button>
+            </form>
+            {% endif %}
         {% else %}
             <p class="empty-message">Energy rating - valid for 10 years. Min E required.</p>
         {% endif %}
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
-              enctype="multipart/form-data" class="upload-form" id="epc_form">
+              enctype="multipart/form-data" class="upload-form">
             <input type="hidden" name="cert_type" value="epc">
-            <div class="date-inputs">
-                <div class="date-field">
-                    <label>Issue Date</label>
-                    <input type="date" name="issue_date">
-                </div>
-                <div class="date-field">
-                    <label>Expiry Date</label>
-                    <input type="date" name="expiry_date">
-                </div>
-                <div class="date-field">
-                    <label>Rating</label>
-                    <select name="rating">
-                        <option value="">-</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                        <option value="D">D</option>
-                        <option value="E">E</option>
-                        <option value="F">F</option>
-                        <option value="G">G</option>
-                    </select>
-                </div>
-            </div>
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="epc_file" onchange="this.form.submit()">
-            <label for="epc_file" class="btn btn-small btn-primary upload-btn-full">📁 Choose File & Upload</label>
+            <label for="epc_file" class="btn btn-small btn-secondary upload-btn-full">📁 {{ 'Upload New' if certificates.epc else 'Choose File & Upload' }}</label>
         </form>
     </div>
 
@@ -577,6 +598,21 @@
     text-align: center;
     cursor: pointer;
     display: block;
+}
+
+/* Edit dates form */
+.edit-dates-form {
+    background: #fff8e6;
+    border: 1px solid #ffe0a0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.missing-dates-msg {
+    color: #856404;
+    font-size: 0.85rem;
+    margin: 0 0 0.75rem 0;
 }
 
 /* EPC Rating */
