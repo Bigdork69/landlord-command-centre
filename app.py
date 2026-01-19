@@ -196,17 +196,30 @@ def upload_certificate(property_id: int):
                 flash(f"Unknown certificate type: {cert_type}", "error")
                 return redirect(url_for("property_detail", property_id=property_id))
 
-            # Parse the PDF
+            # Parse the file
             result = parser.parse(filepath)
 
-            # Get extracted dates
-            issue_date = result.extracted_fields.get('issue_date')
-            expiry_date = result.extracted_fields.get('expiry_date')
+            # Get dates - prefer manual entry over parsed values
+            manual_issue = request.form.get('issue_date')
+            manual_expiry = request.form.get('expiry_date')
+
+            if manual_issue:
+                from datetime import datetime
+                issue_date = datetime.strptime(manual_issue, '%Y-%m-%d').date()
+            else:
+                issue_date = result.extracted_fields.get('issue_date')
+
+            if manual_expiry:
+                from datetime import datetime
+                expiry_date = datetime.strptime(manual_expiry, '%Y-%m-%d').date()
+            else:
+                expiry_date = result.extracted_fields.get('expiry_date')
 
             # Build notes with extra info
             notes_parts = []
             if cert_type == 'epc':
-                rating = result.extracted_fields.get('rating')
+                # Prefer manual rating over parsed
+                rating = request.form.get('rating') or result.extracted_fields.get('rating')
                 if rating:
                     notes_parts.append(f"Rating: {rating}")
                 score = result.extracted_fields.get('score')

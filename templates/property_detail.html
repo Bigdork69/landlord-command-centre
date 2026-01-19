@@ -153,12 +153,20 @@
         {% endif %}
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
-              enctype="multipart/form-data" class="upload-inline">
+              enctype="multipart/form-data" class="upload-form" id="gas_form">
             <input type="hidden" name="cert_type" value="gas_safety">
-            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="gas_file" onchange="updateFileName(this)">
-            <label for="gas_file" class="btn btn-small btn-secondary">📁 Choose File</label>
-            <span class="file-name" id="gas_file_name">No file chosen</span>
-            <button type="submit" class="btn btn-small btn-primary">Upload</button>
+            <div class="date-inputs">
+                <div class="date-field">
+                    <label>Issue Date</label>
+                    <input type="date" name="issue_date">
+                </div>
+                <div class="date-field">
+                    <label>Expiry Date</label>
+                    <input type="date" name="expiry_date">
+                </div>
+            </div>
+            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="gas_file" onchange="this.form.submit()">
+            <label for="gas_file" class="btn btn-small btn-primary upload-btn-full">📁 Choose File & Upload</label>
         </form>
     </div>
 
@@ -196,12 +204,20 @@
         {% endif %}
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
-              enctype="multipart/form-data" class="upload-inline">
+              enctype="multipart/form-data" class="upload-form" id="eicr_form">
             <input type="hidden" name="cert_type" value="eicr">
-            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="eicr_file" onchange="updateFileName(this)">
-            <label for="eicr_file" class="btn btn-small btn-secondary">📁 Choose File</label>
-            <span class="file-name" id="eicr_file_name">No file chosen</span>
-            <button type="submit" class="btn btn-small btn-primary">Upload</button>
+            <div class="date-inputs">
+                <div class="date-field">
+                    <label>Issue Date</label>
+                    <input type="date" name="issue_date">
+                </div>
+                <div class="date-field">
+                    <label>Expiry Date</label>
+                    <input type="date" name="expiry_date">
+                </div>
+            </div>
+            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="eicr_file" onchange="this.form.submit()">
+            <label for="eicr_file" class="btn btn-small btn-primary upload-btn-full">📁 Choose File & Upload</label>
         </form>
     </div>
 
@@ -239,12 +255,33 @@
         {% endif %}
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
-              enctype="multipart/form-data" class="upload-inline">
+              enctype="multipart/form-data" class="upload-form" id="epc_form">
             <input type="hidden" name="cert_type" value="epc">
-            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="epc_file" onchange="updateFileName(this)">
-            <label for="epc_file" class="btn btn-small btn-secondary">📁 Choose File</label>
-            <span class="file-name" id="epc_file_name">No file chosen</span>
-            <button type="submit" class="btn btn-small btn-primary">Upload</button>
+            <div class="date-inputs">
+                <div class="date-field">
+                    <label>Issue Date</label>
+                    <input type="date" name="issue_date">
+                </div>
+                <div class="date-field">
+                    <label>Expiry Date</label>
+                    <input type="date" name="expiry_date">
+                </div>
+                <div class="date-field">
+                    <label>Rating</label>
+                    <select name="rating">
+                        <option value="">-</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+            </div>
+            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="epc_file" onchange="this.form.submit()">
+            <label for="epc_file" class="btn btn-small btn-primary upload-btn-full">📁 Choose File & Upload</label>
         </form>
     </div>
 
@@ -496,21 +533,50 @@
 }
 
 /* Upload Form */
-.upload-inline {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
+.upload-form {
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid #eee;
 }
 
-.upload-inline input[type="file"] {
+.upload-form input[type="file"] {
     display: none;
 }
 
-.upload-inline label {
+.date-inputs {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.date-field {
+    flex: 1;
+    min-width: 100px;
+}
+
+.date-field label {
+    display: block;
+    font-size: 0.7rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+}
+
+.date-field input,
+.date-field select {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.upload-btn-full {
+    width: 100%;
+    text-align: center;
     cursor: pointer;
+    display: block;
 }
 
 /* EPC Rating */
@@ -659,32 +725,5 @@
 .btn:hover {
     opacity: 0.9;
 }
-
-/* File name display */
-.file-name {
-    font-size: 0.8rem;
-    color: #666;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 150px;
-}
-
-.file-name.has-file {
-    color: #155724;
-    font-weight: 500;
-}
 </style>
-
-<script>
-function updateFileName(input) {
-    const fileName = input.files[0]?.name || 'No file chosen';
-    const nameSpan = document.getElementById(input.id + '_name');
-    if (nameSpan) {
-        nameSpan.textContent = fileName;
-        nameSpan.classList.toggle('has-file', input.files.length > 0);
-    }
-}
-</script>
 {% endblock %}
