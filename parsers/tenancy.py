@@ -15,14 +15,25 @@ from parsers.base import DocumentParser
 class TenancyParser(DocumentParser):
     """Parser for tenancy agreement PDFs. Uses AI when available, falls back to regex."""
 
-    def parse(self, pdf_path: Path) -> ParseResult:
-        """Parse a tenancy agreement PDF and extract key fields."""
+    def parse(self, file_path: Path) -> ParseResult:
+        """Parse a tenancy agreement (PDF or image) and extract key fields."""
+        # Handle image files - can't auto-extract, require manual entry
+        if self.is_image_file(file_path):
+            result = ParseResult()
+            result.warnings.append("Image file uploaded - automatic extraction not available for images.")
+            result.warnings.append("Please enter the tenancy details manually below.")
+            # Set all fields as NOT_FOUND to prompt manual entry
+            for field in ['tenant_names', 'property_address', 'postcode', 'tenancy_start_date',
+                         'fixed_term_end_date', 'rent_amount', 'deposit_amount']:
+                result.confidence_scores[field] = 'NOT_FOUND'
+            return result
+
         # Extract text from PDF
         try:
-            text = self.extract_text(pdf_path)
+            text = self.extract_text(file_path)
         except Exception as e:
             result = ParseResult()
-            result.warnings.append(f"Failed to extract text from PDF: {e}")
+            result.warnings.append(f"Failed to extract text from file: {e}")
             return result
 
         # Try AI extraction first (much more accurate)

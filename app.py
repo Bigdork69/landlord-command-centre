@@ -22,7 +22,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
 
 # File upload config
 UPLOAD_FOLDER = Path(__file__).parent / "uploads"
-ALLOWED_EXTENSIONS = {"pdf"}
+ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png"}
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max
 
@@ -255,7 +255,7 @@ def upload_certificate(property_id: int):
             filepath.unlink(missing_ok=True)
 
     else:
-        flash("Only PDF files are allowed", "error")
+        flash("Only PDF, JPG, and PNG files are allowed", "error")
 
     return redirect(url_for("property_detail", property_id=property_id))
 

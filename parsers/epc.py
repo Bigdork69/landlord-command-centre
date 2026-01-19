@@ -15,15 +15,24 @@ from parsers.base import DocumentParser
 class EPCParser(DocumentParser):
     """Parser for EPC Certificate PDFs."""
 
-    def parse(self, pdf_path: Path) -> ParseResult:
-        """Parse an EPC and extract key fields."""
+    def parse(self, file_path: Path) -> ParseResult:
+        """Parse an EPC (PDF or image) and extract key fields."""
         result = ParseResult()
 
+        # Handle image files - require manual date entry
+        if self.is_image_file(file_path):
+            result.warnings.append("Image file uploaded - please enter dates and rating manually.")
+            result.extracted_fields['certificate_type'] = CertificateType.EPC
+            result.confidence_scores['issue_date'] = 'NOT_FOUND'
+            result.confidence_scores['expiry_date'] = 'NOT_FOUND'
+            result.confidence_scores['rating'] = 'NOT_FOUND'
+            return result
+
         try:
-            text = self.extract_text(pdf_path)
+            text = self.extract_text(file_path)
             result.raw_text = text
         except Exception as e:
-            result.warnings.append(f"Failed to extract text from PDF: {e}")
+            result.warnings.append(f"Failed to extract text from file: {e}")
             return result
 
         # Try AI extraction first

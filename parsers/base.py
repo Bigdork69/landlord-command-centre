@@ -12,15 +12,32 @@ from dateutil import parser as date_parser
 
 from models import ParseResult
 
+# Supported file types
+IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png'}
+PDF_EXTENSIONS = {'.pdf'}
+
 
 class DocumentParser(ABC):
     """Abstract base class for document parsers."""
 
-    def extract_text(self, pdf_path: Path) -> str:
-        """Extract all text from a PDF file."""
+    def is_image_file(self, file_path: Path) -> bool:
+        """Check if file is an image."""
+        return file_path.suffix.lower() in IMAGE_EXTENSIONS
+
+    def is_pdf_file(self, file_path: Path) -> bool:
+        """Check if file is a PDF."""
+        return file_path.suffix.lower() in PDF_EXTENSIONS
+
+    def extract_text(self, file_path: Path) -> str:
+        """Extract all text from a PDF file. Returns empty string for images."""
+        # Handle image files - can't extract text without OCR
+        if self.is_image_file(file_path):
+            return ""
+
+        # Handle PDF files
         text = ""
         try:
-            doc = fitz.open(pdf_path)
+            doc = fitz.open(file_path)
             for page in doc:
                 text += page.get_text()
             doc.close()

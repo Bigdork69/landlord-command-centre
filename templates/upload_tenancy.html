@@ -7,15 +7,21 @@
 
 <div class="card" style="max-width: 600px;">
     <p style="margin-bottom: 1.5rem; color: #666;">
-        Upload a tenancy agreement PDF and we'll automatically extract the key details
+        Upload a tenancy agreement (PDF or image) and we'll automatically extract the key details
         (tenant name, dates, rent, deposit) for you to review and confirm.
     </p>
 
     <form method="POST" enctype="multipart/form-data">
         <div class="form-group">
-            <label for="file">Select PDF File</label>
-            <input type="file" id="file" name="file" accept=".pdf" required
-                   style="padding: 1rem; border: 2px dashed #ddd; width: 100%; border-radius: 4px;">
+            <label for="file">Select File (PDF, JPG, PNG)</label>
+            <div class="file-upload-wrapper">
+                <input type="file" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required
+                       onchange="updateSelectedFile(this)">
+                <label for="file" class="file-upload-btn">
+                    📁 Choose File
+                </label>
+                <span class="selected-file-name" id="selected_file_name">No file chosen</span>
+            </div>
         </div>
 
         <button type="submit" class="btn btn-success">Upload & Extract Data</button>
@@ -37,4 +43,59 @@
         <strong>Note:</strong> You'll be able to review and edit all extracted data before saving.
     </p>
 </div>
+
+<style>
+.file-upload-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.file-upload-wrapper input[type="file"] {
+    display: none;
+}
+
+.file-upload-btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: #1a1a2e;
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.file-upload-btn:hover {
+    background: #2d2d4a;
+}
+
+.selected-file-name {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.selected-file-name.has-file {
+    color: #155724;
+    font-weight: 600;
+}
+</style>
+
+<script>
+function updateSelectedFile(input) {
+    const nameSpan = document.getElementById('selected_file_name');
+    if (input.files.length > 0) {
+        nameSpan.textContent = input.files[0].name;
+        nameSpan.classList.add('has-file');
+    } else {
+        nameSpan.textContent = 'No file chosen';
+        nameSpan.classList.remove('has-file');
+    }
+}
+</script>
 {% endblock %}

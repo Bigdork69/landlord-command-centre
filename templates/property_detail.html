@@ -155,8 +155,9 @@
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
               enctype="multipart/form-data" class="upload-inline">
             <input type="hidden" name="cert_type" value="gas_safety">
-            <input type="file" name="file" accept=".pdf" required id="gas_file">
-            <label for="gas_file" class="btn btn-small">Choose File</label>
+            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="gas_file" onchange="updateFileName(this)">
+            <label for="gas_file" class="btn btn-small btn-secondary">📁 Choose File</label>
+            <span class="file-name" id="gas_file_name">No file chosen</span>
             <button type="submit" class="btn btn-small btn-primary">Upload</button>
         </form>
     </div>
@@ -197,8 +198,9 @@
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
               enctype="multipart/form-data" class="upload-inline">
             <input type="hidden" name="cert_type" value="eicr">
-            <input type="file" name="file" accept=".pdf" required id="eicr_file">
-            <label for="eicr_file" class="btn btn-small">Choose File</label>
+            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="eicr_file" onchange="updateFileName(this)">
+            <label for="eicr_file" class="btn btn-small btn-secondary">📁 Choose File</label>
+            <span class="file-name" id="eicr_file_name">No file chosen</span>
             <button type="submit" class="btn btn-small btn-primary">Upload</button>
         </form>
     </div>
@@ -239,8 +241,9 @@
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
               enctype="multipart/form-data" class="upload-inline">
             <input type="hidden" name="cert_type" value="epc">
-            <input type="file" name="file" accept=".pdf" required id="epc_file">
-            <label for="epc_file" class="btn btn-small">Choose File</label>
+            <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="epc_file" onchange="updateFileName(this)">
+            <label for="epc_file" class="btn btn-small btn-secondary">📁 Choose File</label>
+            <span class="file-name" id="epc_file_name">No file chosen</span>
             <button type="submit" class="btn btn-small btn-primary">Upload</button>
         </form>
     </div>
@@ -656,5 +659,32 @@
 .btn:hover {
     opacity: 0.9;
 }
+
+/* File name display */
+.file-name {
+    font-size: 0.8rem;
+    color: #666;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
+
+.file-name.has-file {
+    color: #155724;
+    font-weight: 500;
+}
 </style>
+
+<script>
+function updateFileName(input) {
+    const fileName = input.files[0]?.name || 'No file chosen';
+    const nameSpan = document.getElementById(input.id + '_name');
+    if (nameSpan) {
+        nameSpan.textContent = fileName;
+        nameSpan.classList.toggle('has-file', input.files.length > 0);
+    }
+}
+</script>
 {% endblock %}
