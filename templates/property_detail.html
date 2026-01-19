@@ -139,8 +139,8 @@
         {% if certificates.gas_safety %}
             <div class="cert-info">
                 <div class="cert-dates">
-                    <span><strong>Issued:</strong> {{ certificates.gas_safety.issue_date.strftime('%d %b %Y') }}</span>
-                    <span><strong>Expires:</strong> {{ certificates.gas_safety.expiry_date.strftime('%d %b %Y') }}</span>
+                    <span><strong>Issued:</strong> {{ certificates.gas_safety.issue_date.strftime('%d %b %Y') if certificates.gas_safety.issue_date else 'Not set' }}</span>
+                    <span><strong>Expires:</strong> {{ certificates.gas_safety.expiry_date.strftime('%d %b %Y') if certificates.gas_safety.expiry_date else 'Not set' }}</span>
                 </div>
                 {% if certificates.gas_safety.days_until_expiry %}
                 <div class="days-remaining {% if certificates.gas_safety.days_until_expiry < 30 %}warning{% endif %}">
@@ -182,8 +182,8 @@
         {% if certificates.eicr %}
             <div class="cert-info">
                 <div class="cert-dates">
-                    <span><strong>Issued:</strong> {{ certificates.eicr.issue_date.strftime('%d %b %Y') }}</span>
-                    <span><strong>Expires:</strong> {{ certificates.eicr.expiry_date.strftime('%d %b %Y') }}</span>
+                    <span><strong>Issued:</strong> {{ certificates.eicr.issue_date.strftime('%d %b %Y') if certificates.eicr.issue_date else 'Not set' }}</span>
+                    <span><strong>Expires:</strong> {{ certificates.eicr.expiry_date.strftime('%d %b %Y') if certificates.eicr.expiry_date else 'Not set' }}</span>
                 </div>
                 {% if certificates.eicr.days_until_expiry %}
                 <div class="days-remaining">
@@ -230,8 +230,8 @@
                 </div>
                 {% endif %}
                 <div class="cert-dates">
-                    <span><strong>Issued:</strong> {{ certificates.epc.issue_date.strftime('%d %b %Y') }}</span>
-                    <span><strong>Expires:</strong> {{ certificates.epc.expiry_date.strftime('%d %b %Y') }}</span>
+                    <span><strong>Issued:</strong> {{ certificates.epc.issue_date.strftime('%d %b %Y') if certificates.epc.issue_date else 'Not set' }}</span>
+                    <span><strong>Expires:</strong> {{ certificates.epc.expiry_date.strftime('%d %b %Y') if certificates.epc.expiry_date else 'Not set' }}</span>
                 </div>
             </div>
         {% else %}
