@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 
 from config import get_config
 from database import Database
-from models import Certificate, CertificateType, EventPriority, EventStatus, Property, PropertyType, RentFrequency, Tenancy
+from models import Certificate, CertificateType, EventPriority, EventStatus, Property, PropertyType, RentFrequency, RequiredDocument, Tenancy
 from parsers.tenancy import TenancyParser
 from parsers.gas_safety import GasSafetyParser
 from parsers.eicr import EICRParser
@@ -489,6 +489,10 @@ def tenancy_detail(tenancy_id: int):
     # Get compliance events for this tenancy
     events = db.list_events(tenancy_id=tenancy_id)
 
+    # Get served documents
+    served_docs = db.get_served_documents(tenancy_id)
+    served_doc_types = {doc.document_type.value: doc for doc in served_docs}
+
     return render_template(
         "tenancy_detail.html",
         tenancy=tenancy,
@@ -496,7 +500,60 @@ def tenancy_detail(tenancy_id: int):
         events=events,
         EventStatus=EventStatus,
         EventPriority=EventPriority,
+        RequiredDocument=RequiredDocument,
+        served_documents=served_doc_types,
+        today=date.today(),
     )
+
+
+@app.route("/tenancies/<int:tenancy_id>/serve-document", methods=["POST"])
+def serve_document(tenancy_id: int):
+    """Mark a document as served to tenant."""
+    db = get_db()
+    tenancy = db.get_tenancy(tenancy_id)
+    if not tenancy:
+        flash("Tenancy not found", "error")
+        return redirect(url_for("tenancies"))
+
+    doc_type = request.form.get("document_type")
+    served_date_str = request.form.get("served_date")
+
+    if not doc_type or not served_date_str:
+        flash("Please provide document type and date", "error")
+        return redirect(url_for("tenancy_detail", tenancy_id=tenancy_id))
+
+    try:
+        document_type = RequiredDocument(doc_type)
+        from datetime import datetime
+        served_date = datetime.strptime(served_date_str, '%Y-%m-%d').date()
+
+        db.mark_document_served(tenancy_id, document_type, served_date)
+        flash(f"{document_type.display_name} marked as served on {served_date.strftime('%d %b %Y')}", "success")
+    except ValueError as e:
+        flash(f"Invalid document type or date: {e}", "error")
+
+    return redirect(url_for("tenancy_detail", tenancy_id=tenancy_id))
+
+
+@app.route("/tenancies/<int:tenancy_id>/unserve-document", methods=["POST"])
+def unserve_document(tenancy_id: int):
+    """Remove served status from a document."""
+    db = get_db()
+    tenancy = db.get_tenancy(tenancy_id)
+    if not tenancy:
+        flash("Tenancy not found", "error")
+        return redirect(url_for("tenancies"))
+
+    doc_type = request.form.get("document_type")
+    if doc_type:
+        try:
+            document_type = RequiredDocument(doc_type)
+            db.delete_served_document(tenancy_id, document_type)
+            flash(f"{document_type.display_name} unmarked", "success")
+        except ValueError:
+            flash("Invalid document type", "error")
+
+    return redirect(url_for("tenancy_detail", tenancy_id=tenancy_id))
 
 
 @app.route("/tenancies/<int:tenancy_id>/delete", methods=["POST"])

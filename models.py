@@ -49,6 +49,43 @@ class EventPriority(str, Enum):
     LOW = "low"
 
 
+class RequiredDocument(str, Enum):
+    """Documents legally required to serve to tenants."""
+    HOW_TO_RENT = "how_to_rent"
+    GAS_SAFETY_CERT = "gas_safety_cert"
+    EICR = "eicr"
+    EPC = "epc"
+    DEPOSIT_PROTECTION = "deposit_protection"
+    PRESCRIBED_INFO = "prescribed_info"
+    RIGHT_TO_RENT = "right_to_rent"
+
+    @property
+    def display_name(self) -> str:
+        names = {
+            "how_to_rent": "How to Rent Guide",
+            "gas_safety_cert": "Gas Safety Certificate",
+            "eicr": "EICR",
+            "epc": "EPC",
+            "deposit_protection": "Deposit Protection Certificate",
+            "prescribed_info": "Deposit Prescribed Information",
+            "right_to_rent": "Right to Rent Check",
+        }
+        return names.get(self.value, self.value)
+
+    @property
+    def legal_requirement(self) -> str:
+        requirements = {
+            "how_to_rent": "Deregulation Act 2015 - Required for valid Section 21",
+            "gas_safety_cert": "Gas Safety Regs 1998 - Before move-in & within 28 days of renewal",
+            "eicr": "Electrical Safety Regs 2020 - Before move-in & within 28 days",
+            "epc": "Energy Performance Regs - Before tenancy starts",
+            "deposit_protection": "Housing Act 2004 - Within 30 days of receiving deposit",
+            "prescribed_info": "Housing Act 2004 - Within 30 days of protecting deposit",
+            "right_to_rent": "Immigration Act 2014 - Before tenancy starts",
+        }
+        return requirements.get(self.value, "")
+
+
 @dataclass
 class Property:
     """A rental property."""
@@ -167,6 +204,18 @@ class ComplianceEvent:
         if self.due_date is None:
             return None
         return (self.due_date - date.today()).days
+
+
+@dataclass
+class ServedDocument:
+    """Record of a document served to tenant."""
+    id: Optional[int] = None
+    tenancy_id: int = 0
+    document_type: RequiredDocument = RequiredDocument.HOW_TO_RENT
+    served_date: Optional[date] = None
+    proof_path: str = ""
+    notes: str = ""
+    created_at: datetime = field(default_factory=datetime.now)
 
 
 @dataclass

@@ -118,6 +118,116 @@
     </div>
 </div>
 
+<!-- Required Documents Checklist -->
+<div class="card" style="margin-top: 1.5rem;">
+    <h2>📋 Required Documents</h2>
+    <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">
+        Documents legally required to serve to tenants. Track what you've provided.
+    </p>
+
+    <div class="documents-grid">
+        {% for doc in RequiredDocument %}
+        <div class="document-item {% if doc.value in served_documents %}served{% endif %}">
+            <div class="doc-header">
+                <span class="doc-name">{{ doc.display_name }}</span>
+                {% if doc.value in served_documents %}
+                    <span class="badge badge-success">Served</span>
+                {% else %}
+                    <span class="badge badge-danger">Not Served</span>
+                {% endif %}
+            </div>
+            <div class="doc-legal">{{ doc.legal_requirement }}</div>
+
+            {% if doc.value in served_documents %}
+                <div class="doc-served-info">
+                    Served on: <strong>{{ served_documents[doc.value].served_date.strftime('%d %b %Y') }}</strong>
+                    <form action="{{ url_for('unserve_document', tenancy_id=tenancy.id) }}" method="post" style="display: inline; margin-left: 1rem;">
+                        <input type="hidden" name="document_type" value="{{ doc.value }}">
+                        <button type="submit" class="btn-link" onclick="return confirm('Remove served status?')">Undo</button>
+                    </form>
+                </div>
+            {% else %}
+                <form action="{{ url_for('serve_document', tenancy_id=tenancy.id) }}" method="post" class="serve-form">
+                    <input type="hidden" name="document_type" value="{{ doc.value }}">
+                    <input type="date" name="served_date" required value="{{ today.isoformat() if today else '' }}">
+                    <button type="submit" class="btn btn-small">Mark as Served</button>
+                </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.documents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+}
+
+.document-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.document-item.served {
+    background: #f0fff4;
+    border-color: #c6f6d5;
+}
+
+.doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.doc-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.doc-legal {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.75rem;
+}
+
+.doc-served-info {
+    font-size: 0.85rem;
+    color: #155724;
+}
+
+.serve-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.serve-form input[type="date"] {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-decoration: underline;
+}
+
+.btn-small {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+}
+</style>
+
 <!-- Compliance Timeline -->
 {% if events %}
 <div class="card" style="margin-top: 1.5rem;">

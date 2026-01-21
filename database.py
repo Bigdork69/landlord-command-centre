@@ -16,6 +16,8 @@ from models import (
     Property,
     PropertyType,
     RentFrequency,
+    RequiredDocument,
+    ServedDocument,
     Tenancy,
 )
 
@@ -87,6 +89,19 @@ CREATE TABLE IF NOT EXISTS compliance_events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (property_id) REFERENCES properties(id),
     FOREIGN KEY (tenancy_id) REFERENCES tenancies(id)
+);
+
+-- Documents served to tenants
+CREATE TABLE IF NOT EXISTS served_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tenancy_id INTEGER NOT NULL,
+    document_type TEXT NOT NULL,
+    served_date DATE,
+    proof_path TEXT,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (tenancy_id) REFERENCES tenancies(id),
+    UNIQUE(tenancy_id, document_type)
 );
 
 -- Schema version tracking
@@ -633,6 +648,67 @@ class Database:
             completed_date=self._parse_date(row["completed_date"]),
             status=EventStatus(row["status"]),
             priority=EventPriority(row["priority"]),
+            notes=row["notes"] or "",
+            created_at=self._parse_datetime(row["created_at"]),
+        )
+
+    # Served Documents CRUD operations
+
+    def mark_document_served(
+        self, tenancy_id: int, document_type: RequiredDocument, served_date: date, proof_path: str = "", notes: str = ""
+    ) -> int:
+        """Mark a document as served to tenant. Returns the record ID."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO served_documents (tenancy_id, document_type, served_date, proof_path, notes)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(tenancy_id, document_type) DO UPDATE SET
+                    served_date = excluded.served_date,
+                    proof_path = excluded.proof_path,
+                    notes = excluded.notes
+                """,
+                (tenancy_id, document_type.value, served_date.isoformat(), proof_path, notes),
+            )
+            return cursor.lastrowid
+
+    def get_served_documents(self, tenancy_id: int) -> list[ServedDocument]:
+        """Get all served documents for a tenancy."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM served_documents WHERE tenancy_id = ? ORDER BY served_date",
+                (tenancy_id,),
+            )
+            return [self._row_to_served_document(row) for row in cursor.fetchall()]
+
+    def get_served_document(self, tenancy_id: int, document_type: RequiredDocument) -> Optional[ServedDocument]:
+        """Get a specific served document record."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM served_documents WHERE tenancy_id = ? AND document_type = ?",
+                (tenancy_id, document_type.value),
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_served_document(row)
+            return None
+
+    def delete_served_document(self, tenancy_id: int, document_type: RequiredDocument) -> None:
+        """Delete a served document record."""
+        with self.connection() as conn:
+            conn.execute(
+                "DELETE FROM served_documents WHERE tenancy_id = ? AND document_type = ?",
+                (tenancy_id, document_type.value),
+            )
+
+    def _row_to_served_document(self, row: sqlite3.Row) -> ServedDocument:
+        """Convert database row to ServedDocument object."""
+        return ServedDocument(
+            id=row["id"],
+            tenancy_id=row["tenancy_id"],
+            document_type=RequiredDocument(row["document_type"]),
+            served_date=self._parse_date(row["served_date"]),
+            proof_path=row["proof_path"] or "",
             notes=row["notes"] or "",
             created_at=self._parse_datetime(row["created_at"]),
         )
