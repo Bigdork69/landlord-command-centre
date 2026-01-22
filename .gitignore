@@ -78,3 +78,6 @@ uploads/
 # Generated notices
 output/
 uploads/
+
+# Git worktrees
+.worktrees/
