@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+<div class="detail-grid">
+    <div class="card">
+        <h2>Email Reminders</h2>
+        <p style="color: #666; margin-bottom: 1.5rem;">
+            Get reminders when certificates are about to expire.
+            We'll email you at 3 months, 2 months, 4 weeks, 3 weeks, 2 weeks, and 1 week before expiry.
+        </p>
+
+        <form method="POST" action="{{ url_for('save_settings') }}">
+            <div class="form-group">
+                <label for="recipient_email">Your email address</label>
+                <input type="email" id="recipient_email" name="recipient_email"
+                       value="{{ settings.recipient_email }}"
+                       placeholder="james@example.com">
+            </div>
+
+            <button type="submit" class="btn btn-success">Save</button>
+        </form>
+
+        {% if settings.recipient_email %}
+        <form method="POST" action="{{ url_for('send_test_reminders') }}" style="margin-top: 1rem;">
+            <button type="submit" class="btn">Send Test Email</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Upcoming Reminders</h2>
+
+        {% if pending_reminders %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Property</th>
+                    <th>Expires</th>
+                    <th>Reminder</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pending_reminders %}
+                <tr>
+                    <td><strong>{{ item.name }}</strong></td>
+                    <td>{{ item.property_address }}</td>
+                    <td>
+                        {{ item.expiry_date.strftime('%d %b %Y') }}
+                        <br><small style="color: #666;">({{ item.days_until_expiry }} days)</small>
+                    </td>
+                    <td>
+                        {% if item.days_until_expiry <= 7 %}
+                            <span class="badge badge-danger">{{ item.reminder_label }}</span>
+                        {% elif item.days_until_expiry <= 28 %}
+                            <span class="badge badge-warning">{{ item.reminder_label }}</span>
+                        {% else %}
+                            <span class="badge">{{ item.reminder_label }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: #27ae60;">No reminders due yet - you'll be notified 3 months before expiry.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

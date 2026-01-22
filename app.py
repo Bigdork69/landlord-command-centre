@@ -16,6 +16,7 @@ from parsers.gas_safety import GasSafetyParser
 from parsers.eicr import EICRParser
 from parsers.epc import EPCParser
 from services.timeline import TimelineGenerator
+from services.notifications import NotificationService, EmailSettings
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
@@ -44,6 +45,13 @@ def get_db() -> Database:
 def index():
     """Dashboard showing overview with alerts."""
     db = get_db()
+
+    # Auto-send reminders if email is configured (silent operation)
+    notifications = NotificationService(db)
+    settings = notifications.get_email_settings()
+    if settings.enabled and settings.recipient_email:
+        notifications.send_reminders()  # Only sends if due and not yet sent
+
     properties = db.list_properties()
     tenancies = db.list_tenancies(active_only=True)
 
@@ -615,6 +623,91 @@ def complete_event(event_id: int):
 
     # Redirect back to referring page
     return redirect(request.referrer or url_for("timeline"))
+
+
+@app.route("/settings")
+def settings():
+    """Show settings page."""
+    db = get_db()
+    notifications = NotificationService(db)
+    email_settings = notifications.get_email_settings()
+    pending = notifications.get_pending_reminders_preview()
+
+    return render_template(
+        "settings.html",
+        settings=email_settings,
+        pending_reminders=pending,
+    )
+
+
+@app.route("/settings/save", methods=["POST"])
+def save_settings():
+    """Save email notification settings."""
+    db = get_db()
+    notifications = NotificationService(db)
+
+    recipient_email = request.form.get("recipient_email", "").strip()
+    settings = EmailSettings(
+        enabled=bool(recipient_email),  # Auto-enable when email is set
+        recipient_email=recipient_email,
+    )
+
+    notifications.save_email_settings(settings)
+    if recipient_email:
+        flash("Email saved - you'll receive reminders when items are expiring", "success")
+    else:
+        flash("Email reminders disabled", "success")
+    return redirect(url_for("settings"))
+
+
+@app.route("/send-reminders", methods=["POST"])
+def send_reminders():
+    """Send reminder emails for expiring items. Called by cron or manually."""
+    db = get_db()
+    notifications = NotificationService(db)
+    result = notifications.send_reminders()
+
+    # Return JSON for API use (cron jobs)
+    if request.headers.get("Accept") == "application/json":
+        return result
+
+    # Flash message for web UI
+    if result["status"] == "ok":
+        if result["sent"] > 0:
+            flash(f"Sent {result['sent']} reminder(s)", "success")
+        else:
+            flash("No reminders needed - nothing expiring soon", "success")
+    elif result["status"] == "disabled":
+        flash("Email notifications are disabled. Enable them in settings.", "warning")
+    else:
+        flash(f"Error sending reminders: {result.get('message', 'Unknown error')}", "error")
+
+    return redirect(url_for("settings"))
+
+
+@app.route("/send-test-reminders", methods=["POST"])
+def send_test_reminders():
+    """Send test reminder email with current pending items."""
+    db = get_db()
+    notifications = NotificationService(db)
+
+    # Check settings first
+    settings = notifications.get_email_settings()
+    if not settings.recipient_email:
+        flash("Enter your email address first", "warning")
+        return redirect(url_for("settings"))
+
+    result = notifications.send_reminders()
+
+    if result["status"] == "ok":
+        if result["sent"] > 0:
+            flash(f"Test email sent to {settings.recipient_email}", "success")
+        else:
+            flash("No items expiring within 3 months - nothing to send", "success")
+    else:
+        flash(f"Error: {result.get('message', 'Failed to send email')}", "error")
+
+    return redirect(url_for("settings"))
 
 
 if __name__ == "__main__":

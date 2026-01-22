@@ -39,6 +39,9 @@ class Config:
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.groq_api_key = os.getenv("GROQ_API_KEY", "")
 
+        # Email notifications via Resend.com
+        self.resend_api_key = os.getenv("RESEND_API_KEY", "")
+
     @property
     def database_dir(self) -> Path:
         """Get the directory containing the database."""

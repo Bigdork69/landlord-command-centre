@@ -138,6 +138,33 @@
             </div>
             <div class="doc-legal">{{ doc.legal_requirement }}</div>
 
+            {% if doc.resources %}
+            <div class="doc-resources">
+                {% if doc.resources.gov_uk %}
+                    <a href="{{ doc.resources.gov_uk }}" target="_blank" rel="noopener" class="btn btn-small btn-outline">
+                        📥 {{ doc.resources.label }}
+                    </a>
+                {% endif %}
+                {% if doc.resources.documents %}
+                    <a href="{{ doc.resources.documents }}" target="_blank" rel="noopener" class="btn btn-small btn-outline">
+                        📋 Document Checklist
+                    </a>
+                {% endif %}
+                {% if doc.resources.dps %}
+                    <span class="template-links">
+                        Templates:
+                        <a href="{{ doc.resources.dps }}" target="_blank" rel="noopener">DPS</a> |
+                        <a href="{{ doc.resources.mydeposits }}" target="_blank" rel="noopener">MyDeposits</a>
+                    </span>
+                {% endif %}
+                {% if doc.resources.lookup and property %}
+                    <a href="{{ doc.resources.lookup }}{{ property.postcode | urlencode }}" target="_blank" rel="noopener" class="btn btn-small btn-outline">
+                        🔍 Look up EPC for {{ property.postcode }}
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {% if doc.value in served_documents %}
                 <div class="doc-served-info">
                     Served on: <strong>{{ served_documents[doc.value].served_date.strftime('%d %b %Y') }}</strong>
@@ -225,6 +252,42 @@
 .btn-small {
     padding: 0.35rem 0.75rem;
     font-size: 0.8rem;
+}
+
+.btn-outline {
+    background: white;
+    border: 1px solid #4a90d9;
+    color: #4a90d9;
+    text-decoration: none;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.btn-outline:hover {
+    background: #4a90d9;
+    color: white;
+}
+
+.doc-resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    align-items: center;
+}
+
+.template-links {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.template-links a {
+    color: #4a90d9;
+    text-decoration: none;
+}
+
+.template-links a:hover {
+    text-decoration: underline;
 }
 </style>
 

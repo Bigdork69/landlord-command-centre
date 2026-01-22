@@ -85,6 +85,31 @@ class RequiredDocument(str, Enum):
         }
         return requirements.get(self.value, "")
 
+    @property
+    def resources(self) -> dict:
+        """Return download/reference URLs for this document type."""
+        resources = {
+            "how_to_rent": {
+                "gov_uk": "https://www.gov.uk/government/publications/how-to-rent",
+                "label": "Download from gov.uk",
+            },
+            "right_to_rent": {
+                "gov_uk": "https://www.gov.uk/government/publications/landlords-guide-to-right-to-rent-checks",
+                "documents": "https://www.gov.uk/government/publications/right-to-rent-document-checks-a-user-guide",
+                "label": "Landlord Guide",
+            },
+            "prescribed_info": {
+                "dps": "https://content-assets.computershare.com/eh96rkuu9740/768AMjuCtiqgYqOJXmIGie/f1b8ce74a8ad48ee4a01487cdb8318fe/DPS-Prescribed-Information-Form.pdf",
+                "mydeposits": "https://www.mydeposits.co.uk/wp-content/uploads/2021/04/mydeposits-custodial-PI-template.pdf",
+                "label": "Template Downloads",
+            },
+            "epc": {
+                "lookup": "https://find-energy-certificate.digital.communities.gov.uk/find-a-certificate/search-by-postcode?postcode=",
+                "label": "Look up EPC",
+            },
+        }
+        return resources.get(self.value, {})
+
 
 @dataclass
 class Property:
