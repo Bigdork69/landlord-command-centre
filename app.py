@@ -153,9 +153,11 @@ def get_db() -> Database:
 
 
 @app.route("/")
+@login_required
 def index():
     """Dashboard showing overview with alerts."""
     db = get_db()
+    user_id = current_user.id
 
     # Auto-send reminders if email is configured (silent operation)
     notifications = NotificationService(db)
@@ -163,14 +165,14 @@ def index():
     if settings.enabled and settings.recipient_email:
         notifications.send_reminders()  # Only sends if due and not yet sent
 
-    properties = db.list_properties()
-    tenancies = db.list_tenancies(active_only=True)
+    properties = db.list_properties(user_id=user_id)
+    tenancies = db.list_tenancies(user_id=user_id, active_only=True)
 
     # Calculate stats
     total_rent = sum(t.rent_amount for t in tenancies)
 
     # Get timeline alerts
-    timeline = TimelineGenerator(db)
+    timeline = TimelineGenerator(db, user_id=user_id)
     overdue_events = timeline.get_overdue_events()
     upcoming_events = timeline.get_upcoming_events(days=14)
 
@@ -191,24 +193,28 @@ def index():
 
 
 @app.route("/properties")
+@login_required
 def properties():
     """List all properties."""
     db = get_db()
-    properties = db.list_properties()
+    user_id = current_user.id
+    properties = db.list_properties(user_id=user_id)
     return render_template("properties.html", properties=properties)
 
 
 @app.route("/properties/add", methods=["GET", "POST"])
+@login_required
 def add_property():
     """Add a new property."""
     if request.method == "POST":
         db = get_db()
+        user_id = current_user.id
         prop = Property(
             address=request.form["address"],
             postcode=request.form["postcode"].upper(),
             property_type=PropertyType(request.form["property_type"]),
         )
-        prop_id = db.create_property(prop)
+        prop_id = db.create_property(prop, user_id=user_id)
         flash(f"Property created with ID: {prop_id}", "success")
         return redirect(url_for("properties"))
 
@@ -216,21 +222,23 @@ def add_property():
 
 
 @app.route("/properties/<int:property_id>")
+@login_required
 def property_detail(property_id: int):
     """Show property details with documents and timeline."""
     db = get_db()
-    prop = db.get_property(property_id)
+    user_id = current_user.id
+    prop = db.get_property(property_id, user_id=user_id)
     if not prop:
         flash("Property not found", "error")
         return redirect(url_for("properties"))
 
-    tenancies = db.list_tenancies_for_property(property_id)
+    tenancies = db.list_tenancies_for_property(property_id, user_id=user_id)
 
     # Get certificates
     certificates = {
-        'gas_safety': db.get_latest_certificate(property_id, CertificateType.GAS_SAFETY),
-        'eicr': db.get_latest_certificate(property_id, CertificateType.EICR),
-        'epc': db.get_latest_certificate(property_id, CertificateType.EPC),
+        'gas_safety': db.get_latest_certificate(property_id, CertificateType.GAS_SAFETY, user_id=user_id),
+        'eicr': db.get_latest_certificate(property_id, CertificateType.EICR, user_id=user_id),
+        'epc': db.get_latest_certificate(property_id, CertificateType.EPC, user_id=user_id),
     }
 
     # Add rating to EPC certificate for template display
@@ -246,7 +254,7 @@ def property_detail(property_id: int):
         certificates['epc'].rating = None
 
     # Get compliance events for this property
-    events = db.list_events(property_id=property_id)
+    events = db.list_events(user_id=user_id, property_id=property_id)
 
     return render_template(
         "property_detail.html",
@@ -261,25 +269,29 @@ def property_detail(property_id: int):
 
 
 @app.route("/properties/<int:property_id>/delete", methods=["POST"])
+@login_required
 def delete_property(property_id: int):
     """Delete a property and all associated data."""
     db = get_db()
-    prop = db.get_property(property_id)
+    user_id = current_user.id
+    prop = db.get_property(property_id, user_id=user_id)
     if not prop:
         flash("Property not found", "error")
         return redirect(url_for("properties"))
 
     address = prop.address
-    db.delete_property(property_id)
+    db.delete_property(property_id, user_id=user_id)
     flash(f"Property '{address}' and all associated data deleted", "success")
     return redirect(url_for("properties"))
 
 
 @app.route("/properties/<int:property_id>/upload-certificate", methods=["POST"])
+@login_required
 def upload_certificate(property_id: int):
     """Upload and parse a compliance certificate PDF."""
     db = get_db()
-    prop = db.get_property(property_id)
+    user_id = current_user.id
+    prop = db.get_property(property_id, user_id=user_id)
     if not prop:
         flash("Property not found", "error")
         return redirect(url_for("properties"))
@@ -368,7 +380,7 @@ def upload_certificate(property_id: int):
                 document_path=str(filepath),
                 notes="; ".join(notes_parts) if notes_parts else "",
             )
-            cert_id = db.create_certificate(cert)
+            cert_id = db.create_certificate(cert, user_id=user_id)
 
             # Show warnings if any
             if result.warnings:
@@ -393,10 +405,12 @@ def upload_certificate(property_id: int):
 
 
 @app.route("/certificates/<int:cert_id>/update", methods=["POST"])
+@login_required
 def update_certificate(cert_id: int):
     """Update certificate dates manually."""
     db = get_db()
-    cert = db.get_certificate(cert_id)
+    user_id = current_user.id
+    cert = db.get_certificate(cert_id, user_id=user_id)
 
     if not cert:
         flash("Certificate not found", "error")
@@ -425,30 +439,34 @@ def update_certificate(cert_id: int):
         else:
             notes = f"Rating: {rating}; {existing_notes}" if existing_notes else f"Rating: {rating}"
 
-    db.update_certificate(cert_id, issue_date=issue_date, expiry_date=expiry_date, notes=notes)
+    db.update_certificate(cert_id, user_id=user_id, issue_date=issue_date, expiry_date=expiry_date, notes=notes)
     flash("Certificate dates updated!", "success")
 
     return redirect(url_for("property_detail", property_id=cert.property_id))
 
 
 @app.route("/tenancies")
+@login_required
 def tenancies():
     """List all tenancies."""
     db = get_db()
-    tenancy_list = db.list_tenancies()
+    user_id = current_user.id
+    tenancy_list = db.list_tenancies(user_id=user_id)
 
     tenancies_with_props = []
     for t in tenancy_list:
-        prop = db.get_property(t.property_id)
+        prop = db.get_property(t.property_id, user_id=user_id)
         tenancies_with_props.append({"tenancy": t, "property": prop})
 
     return render_template("tenancies.html", tenancies=tenancies_with_props)
 
 
 @app.route("/tenancies/add", methods=["GET", "POST"])
+@login_required
 def add_tenancy():
     """Add a new tenancy manually."""
     db = get_db()
+    user_id = current_user.id
 
     if request.method == "POST":
         try:
@@ -469,11 +487,11 @@ def add_tenancy():
                 rent_frequency=RentFrequency(request.form["rent_frequency"]),
                 deposit_amount=deposit_amount,
             )
-            tenancy_id = db.create_tenancy(tenancy)
+            tenancy_id = db.create_tenancy(tenancy, user_id=user_id)
 
             # Generate compliance timeline
-            tenancy = db.get_tenancy(tenancy_id)
-            timeline = TimelineGenerator(db)
+            tenancy = db.get_tenancy(tenancy_id, user_id=user_id)
+            timeline = TimelineGenerator(db, user_id=user_id)
             events = timeline.generate_for_tenancy(tenancy)
 
             flash(f"Tenancy created! Generated {len(events)} compliance deadlines.", "success")
@@ -481,7 +499,7 @@ def add_tenancy():
         except Exception as e:
             flash(f"Error creating tenancy: {e}", "error")
 
-    properties = db.list_properties()
+    properties = db.list_properties(user_id=user_id)
     return render_template(
         "add_tenancy.html",
         properties=properties,
@@ -490,10 +508,12 @@ def add_tenancy():
 
 
 @app.route("/tenancies/upload", methods=["GET", "POST"])
+@login_required
 def upload_tenancy():
     """Upload and parse a tenancy agreement PDF."""
     db = get_db()
-    properties = db.list_properties()
+    user_id = current_user.id
+    properties = db.list_properties(user_id=user_id)
 
     if request.method == "POST":
         # Check if file was uploaded
@@ -540,9 +560,11 @@ def upload_tenancy():
 
 
 @app.route("/tenancies/confirm", methods=["POST"])
+@login_required
 def confirm_tenancy():
     """Confirm and save parsed tenancy data."""
     db = get_db()
+    user_id = current_user.id
 
     try:
         start_date = date.fromisoformat(request.form["tenancy_start_date"]) if request.form.get("tenancy_start_date") else None
@@ -565,7 +587,7 @@ def confirm_tenancy():
                 postcode=postcode,
                 property_type=PropertyType.HOUSE,
             )
-            property_id = db.create_property(prop)
+            property_id = db.create_property(prop, user_id=user_id)
         else:
             property_id = int(property_id)
 
@@ -579,11 +601,11 @@ def confirm_tenancy():
             deposit_amount=deposit_amount,
             document_path=request.form.get("filepath", ""),
         )
-        tenancy_id = db.create_tenancy(tenancy)
+        tenancy_id = db.create_tenancy(tenancy, user_id=user_id)
 
         # Generate compliance timeline
-        tenancy = db.get_tenancy(tenancy_id)
-        timeline = TimelineGenerator(db)
+        tenancy = db.get_tenancy(tenancy_id, user_id=user_id)
+        timeline = TimelineGenerator(db, user_id=user_id)
         events = timeline.generate_for_tenancy(tenancy)
 
         flash(f"Tenancy created from PDF! Generated {len(events)} compliance deadlines.", "success")
@@ -595,21 +617,23 @@ def confirm_tenancy():
 
 
 @app.route("/tenancies/<int:tenancy_id>")
+@login_required
 def tenancy_detail(tenancy_id: int):
     """Show tenancy details with compliance timeline."""
     db = get_db()
-    tenancy = db.get_tenancy(tenancy_id)
+    user_id = current_user.id
+    tenancy = db.get_tenancy(tenancy_id, user_id=user_id)
     if not tenancy:
         flash("Tenancy not found", "error")
         return redirect(url_for("tenancies"))
 
-    prop = db.get_property(tenancy.property_id)
+    prop = db.get_property(tenancy.property_id, user_id=user_id)
 
     # Get compliance events for this tenancy
-    events = db.list_events(tenancy_id=tenancy_id)
+    events = db.list_events(user_id=user_id, tenancy_id=tenancy_id)
 
     # Get served documents
-    served_docs = db.get_served_documents(tenancy_id)
+    served_docs = db.get_served_documents(tenancy_id, user_id=user_id)
     served_doc_types = {doc.document_type.value: doc for doc in served_docs}
 
     return render_template(
@@ -626,10 +650,12 @@ def tenancy_detail(tenancy_id: int):
 
 
 @app.route("/tenancies/<int:tenancy_id>/serve-document", methods=["POST"])
+@login_required
 def serve_document(tenancy_id: int):
     """Mark a document as served to tenant."""
     db = get_db()
-    tenancy = db.get_tenancy(tenancy_id)
+    user_id = current_user.id
+    tenancy = db.get_tenancy(tenancy_id, user_id=user_id)
     if not tenancy:
         flash("Tenancy not found", "error")
         return redirect(url_for("tenancies"))
@@ -646,7 +672,7 @@ def serve_document(tenancy_id: int):
         from datetime import datetime
         served_date = datetime.strptime(served_date_str, '%Y-%m-%d').date()
 
-        db.mark_document_served(tenancy_id, document_type, served_date)
+        db.mark_document_served(tenancy_id, document_type, served_date, user_id=user_id)
         flash(f"{document_type.display_name} marked as served on {served_date.strftime('%d %b %Y')}", "success")
     except ValueError as e:
         flash(f"Invalid document type or date: {e}", "error")
@@ -655,10 +681,12 @@ def serve_document(tenancy_id: int):
 
 
 @app.route("/tenancies/<int:tenancy_id>/unserve-document", methods=["POST"])
+@login_required
 def unserve_document(tenancy_id: int):
     """Remove served status from a document."""
     db = get_db()
-    tenancy = db.get_tenancy(tenancy_id)
+    user_id = current_user.id
+    tenancy = db.get_tenancy(tenancy_id, user_id=user_id)
     if not tenancy:
         flash("Tenancy not found", "error")
         return redirect(url_for("tenancies"))
@@ -667,7 +695,7 @@ def unserve_document(tenancy_id: int):
     if doc_type:
         try:
             document_type = RequiredDocument(doc_type)
-            db.delete_served_document(tenancy_id, document_type)
+            db.delete_served_document(tenancy_id, document_type, user_id=user_id)
             flash(f"{document_type.display_name} unmarked", "success")
         except ValueError:
             flash("Invalid document type", "error")
@@ -676,26 +704,30 @@ def unserve_document(tenancy_id: int):
 
 
 @app.route("/tenancies/<int:tenancy_id>/delete", methods=["POST"])
+@login_required
 def delete_tenancy(tenancy_id: int):
     """Delete a tenancy and its associated compliance events."""
     db = get_db()
-    tenancy = db.get_tenancy(tenancy_id)
+    user_id = current_user.id
+    tenancy = db.get_tenancy(tenancy_id, user_id=user_id)
     if not tenancy:
         flash("Tenancy not found", "error")
         return redirect(url_for("tenancies"))
 
     property_id = tenancy.property_id
     tenant_name = tenancy.tenant_names
-    db.delete_tenancy(tenancy_id)
+    db.delete_tenancy(tenancy_id, user_id=user_id)
     flash(f"Tenancy for '{tenant_name}' deleted", "success")
     return redirect(url_for("property_detail", property_id=property_id))
 
 
 @app.route("/timeline")
+@login_required
 def timeline():
     """Show full compliance timeline."""
     db = get_db()
-    tl = TimelineGenerator(db)
+    user_id = current_user.id
+    tl = TimelineGenerator(db, user_id=user_id)
 
     # Get filter parameters
     days = int(request.args.get("days", 90))
@@ -709,7 +741,7 @@ def timeline():
     upcoming = [e for e in upcoming if e.id not in overdue_ids]
 
     # Get all properties for filter dropdown
-    properties = db.list_properties()
+    properties = db.list_properties(user_id=user_id)
 
     return render_template(
         "timeline.html",
@@ -725,10 +757,12 @@ def timeline():
 
 
 @app.route("/events/<int:event_id>/complete", methods=["POST"])
+@login_required
 def complete_event(event_id: int):
     """Mark an event as completed."""
     db = get_db()
-    tl = TimelineGenerator(db)
+    user_id = current_user.id
+    tl = TimelineGenerator(db, user_id=user_id)
     tl.mark_complete(event_id)
     flash("Event marked as completed", "success")
 
@@ -737,6 +771,7 @@ def complete_event(event_id: int):
 
 
 @app.route("/settings")
+@login_required
 def settings():
     """Show settings page."""
     db = get_db()
@@ -752,6 +787,7 @@ def settings():
 
 
 @app.route("/settings/save", methods=["POST"])
+@login_required
 def save_settings():
     """Save email notification settings."""
     db = get_db()
@@ -772,6 +808,7 @@ def save_settings():
 
 
 @app.route("/send-reminders", methods=["POST"])
+@login_required
 def send_reminders():
     """Send reminder emails for expiring items. Called by cron or manually."""
     db = get_db()
@@ -797,6 +834,7 @@ def send_reminders():
 
 
 @app.route("/send-test-reminders", methods=["POST"])
+@login_required
 def send_test_reminders():
     """Send test reminder email with current pending items."""
     db = get_db()
