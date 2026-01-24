@@ -30,10 +30,12 @@ SCHEMA = """
 -- Properties table
 CREATE TABLE IF NOT EXISTS properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     address TEXT NOT NULL,
     postcode TEXT NOT NULL,
     property_type TEXT NOT NULL DEFAULT 'house',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- Tenancies table
@@ -171,23 +173,22 @@ class Database:
 
     # Property CRUD operations
 
-    def create_property(self, prop: Property) -> int:
+    def create_property(self, prop: Property, user_id: int) -> int:
         """Create a new property and return its ID."""
         with self.connection() as conn:
             cursor = conn.execute(
-                """
-                INSERT INTO properties (address, postcode, property_type)
-                VALUES (?, ?, ?)
-                """,
-                (prop.address, prop.postcode, prop.property_type.value),
+                """INSERT INTO properties (user_id, address, postcode, property_type)
+                   VALUES (?, ?, ?, ?)""",
+                (user_id, prop.address, prop.postcode, prop.property_type.value),
             )
             return cursor.lastrowid
 
-    def get_property(self, property_id: int) -> Optional[Property]:
-        """Get a property by ID."""
+    def get_property(self, property_id: int, user_id: int) -> Optional[Property]:
+        """Get a property by ID (only if it belongs to user)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM properties WHERE id = ?", (property_id,)
+                "SELECT * FROM properties WHERE id = ? AND user_id = ?",
+                (property_id, user_id),
             )
             row = cursor.fetchone()
             if row:
@@ -206,10 +207,13 @@ class Database:
                 return self._row_to_property(row)
             return None
 
-    def list_properties(self) -> list[Property]:
-        """List all properties."""
+    def list_properties(self, user_id: int) -> list[Property]:
+        """List all properties for a user."""
         with self.connection() as conn:
-            cursor = conn.execute("SELECT * FROM properties ORDER BY created_at DESC")
+            cursor = conn.execute(
+                "SELECT * FROM properties WHERE user_id = ? ORDER BY address",
+                (user_id,),
+            )
             return [self._row_to_property(row) for row in cursor.fetchall()]
 
     def _row_to_property(self, row: sqlite3.Row) -> Property:
