@@ -6,9 +6,13 @@ from decimal import Decimal
 from pathlib import Path
 
 from flask import Flask, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.utils import secure_filename
 
 from config import get_config
+from services.auth import hash_password, check_password
+from models import User
 from database import Database
 from models import Certificate, CertificateType, EventPriority, EventStatus, Property, PropertyType, RentFrequency, RequiredDocument, Tenancy
 from parsers.tenancy import TenancyParser
@@ -20,6 +24,113 @@ from services.notifications import NotificationService, EmailSettings
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
+
+# CSRF protection
+csrf = CSRFProtect(app)
+
+# Login manager setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+login_manager.login_message = "Please log in to access this page."
+
+
+@login_manager.user_loader
+def load_user(user_id: str):
+    """Load user by ID for Flask-Login."""
+    db = get_db()
+    return db.get_user(int(user_id))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Login page."""
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        db = get_db()
+        user = db.get_user_by_email(email)
+
+        if user and check_password(password, user.password_hash):
+            login_user(user, remember=True)
+            flash(f"Welcome back, {user.name}!", "success")
+            next_page = request.args.get("next")
+            return redirect(next_page or url_for("index"))
+        else:
+            flash("Invalid email or password", "error")
+
+    return render_template("login.html")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Registration page."""
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        password_confirm = request.form.get("password_confirm", "")
+
+        # Validation
+        if not name or not email or not password:
+            flash("All fields are required", "error")
+            return render_template("register.html")
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters", "error")
+            return render_template("register.html")
+
+        if password != password_confirm:
+            flash("Passwords do not match", "error")
+            return render_template("register.html")
+
+        db = get_db()
+
+        # Check if email already exists
+        if db.get_user_by_email(email):
+            flash("An account with this email already exists", "error")
+            return render_template("register.html")
+
+        # Create user
+        user = User(
+            email=email,
+            password_hash=hash_password(password),
+            name=name,
+        )
+        user_id = db.create_user(user)
+        user.id = user_id
+
+        login_user(user, remember=True)
+        flash(f"Welcome, {name}! Your account has been created.", "success")
+        return redirect(url_for("index"))
+
+    return render_template("register.html")
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    """Logout the current user."""
+    logout_user()
+    flash("You have been logged out", "success")
+    return redirect(url_for("login"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Request password reset."""
+    if request.method == "POST":
+        flash("If that email exists, a reset link has been sent.", "success")
+        return redirect(url_for("login"))
+    return render_template("forgot_password.html")
+
 
 # File upload config
 UPLOAD_FOLDER = Path(__file__).parent / "uploads"
