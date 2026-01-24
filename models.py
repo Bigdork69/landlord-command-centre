@@ -244,6 +244,29 @@ class ServedDocument:
 
 
 @dataclass
+class User:
+    """A user account."""
+    id: Optional[int] = None
+    email: str = ""
+    password_hash: str = ""
+    name: str = ""
+    created_at: datetime = field(default_factory=datetime.now)
+    is_active: bool = True
+
+    # Flask-Login interface
+    @property
+    def is_authenticated(self) -> bool:
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
+    def get_id(self) -> str:
+        return str(self.id)
+
+
+@dataclass
 class ParseResult:
     """Result from parsing a document."""
     extracted_fields: dict = field(default_factory=dict)
