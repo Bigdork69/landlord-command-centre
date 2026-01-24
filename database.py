@@ -19,6 +19,7 @@ from models import (
     RequiredDocument,
     ServedDocument,
     Tenancy,
+    User,
 )
 
 
@@ -102,6 +103,16 @@ CREATE TABLE IF NOT EXISTS served_documents (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenancy_id) REFERENCES tenancies(id),
     UNIQUE(tenancy_id, document_type)
+);
+
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Schema version tracking
@@ -712,3 +723,50 @@ class Database:
             notes=row["notes"] or "",
             created_at=self._parse_datetime(row["created_at"]),
         )
+
+    # User operations
+    def create_user(self, user: User) -> int:
+        """Create a new user and return their ID."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                """INSERT INTO users (email, password_hash, name, is_active)
+                   VALUES (?, ?, ?, ?)""",
+                (user.email, user.password_hash, user.name, user.is_active),
+            )
+            return cursor.lastrowid
+
+    def get_user(self, user_id: int) -> Optional[User]:
+        """Get a user by ID."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM users WHERE id = ?", (user_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return User(
+                    id=row["id"],
+                    email=row["email"],
+                    password_hash=row["password_hash"],
+                    name=row["name"],
+                    is_active=bool(row["is_active"]),
+                    created_at=row["created_at"],
+                )
+            return None
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email address."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM users WHERE email = ?", (email,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return User(
+                    id=row["id"],
+                    email=row["email"],
+                    password_hash=row["password_hash"],
+                    name=row["name"],
+                    is_active=bool(row["is_active"]),
+                    created_at=row["created_at"],
+                )
+            return None
