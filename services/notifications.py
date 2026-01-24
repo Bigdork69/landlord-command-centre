@@ -94,24 +94,29 @@ class NotificationService:
                 settings.recipient_email,
             ))
 
-    def get_expiring_items(self) -> list[ExpiryItem]:
+    def get_expiring_items(self, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get all items that need reminders based on the schedule."""
         today = date.today()
         items = []
 
         # Check certificates
         for cert_type in CertificateType:
-            items.extend(self._get_expiring_certificates(cert_type, today))
+            items.extend(self._get_expiring_certificates(cert_type, today, user_id))
 
         # Check compliance events with due dates
-        items.extend(self._get_expiring_events(today))
+        items.extend(self._get_expiring_events(today, user_id))
 
         return items
 
-    def _get_expiring_certificates(self, cert_type: CertificateType, today: date) -> list[ExpiryItem]:
+    def _get_expiring_certificates(self, cert_type: CertificateType, today: date, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get certificates of a type that are expiring within the reminder window."""
         items = []
-        properties = self.db.list_properties()
+        # If user_id provided, filter to that user's properties
+        if user_id is not None:
+            properties = self.db.list_properties(user_id=user_id)
+        else:
+            # Fallback for system-wide reminders (no user_id means check all)
+            properties = self._list_all_properties()
 
         cert_names = {
             CertificateType.GAS_SAFETY: "Gas Safety Certificate",
@@ -121,7 +126,10 @@ class NotificationService:
         }
 
         for prop in properties:
-            cert = self.db.get_latest_certificate(prop.id, cert_type)
+            if user_id is not None:
+                cert = self.db.get_latest_certificate(prop.id, cert_type, user_id=user_id)
+            else:
+                cert = self._get_latest_certificate_any_user(prop.id, cert_type)
             if cert and cert.expiry_date:
                 days_until = (cert.expiry_date - today).days
 
@@ -143,13 +151,20 @@ class NotificationService:
 
         return items
 
-    def _get_expiring_events(self, today: date) -> list[ExpiryItem]:
+    def _get_expiring_events(self, today: date, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get compliance events that are due within the reminder window."""
         items = []
-        properties = self.db.list_properties()
+        # If user_id provided, filter to that user's properties
+        if user_id is not None:
+            properties = self.db.list_properties(user_id=user_id)
+        else:
+            properties = self._list_all_properties()
 
         for prop in properties:
-            events = self.db.list_events(property_id=prop.id)
+            if user_id is not None:
+                events = self.db.list_events(user_id=user_id, property_id=prop.id)
+            else:
+                events = self._list_events_any_user(property_id=prop.id)
             for event in events:
                 if event.due_date and event.status.value == "pending":
                     days_until = (event.due_date - today).days
@@ -171,6 +186,71 @@ class NotificationService:
                             break  # Only add one reminder per item
 
         return items
+
+    def _list_all_properties(self) -> list:
+        """List all properties across all users (for system-wide reminders)."""
+        from models import Property, PropertyType
+        with self.db.connection() as conn:
+            cursor = conn.execute("SELECT * FROM properties ORDER BY address")
+            rows = cursor.fetchall()
+            return [
+                Property(
+                    id=row["id"],
+                    address=row["address"],
+                    postcode=row["postcode"],
+                    property_type=PropertyType(row["property_type"]),
+                )
+                for row in rows
+            ]
+
+    def _get_latest_certificate_any_user(self, property_id: int, cert_type: CertificateType):
+        """Get the most recent certificate of a type for a property (any user)."""
+        from models import Certificate
+        with self.db.connection() as conn:
+            cursor = conn.execute(
+                """SELECT * FROM certificates
+                   WHERE property_id = ? AND certificate_type = ?
+                   ORDER BY issue_date DESC LIMIT 1""",
+                (property_id, cert_type.value),
+            )
+            row = cursor.fetchone()
+            if row:
+                return Certificate(
+                    id=row["id"],
+                    property_id=row["property_id"],
+                    certificate_type=CertificateType(row["certificate_type"]),
+                    issue_date=self.db._parse_date(row["issue_date"]),
+                    expiry_date=self.db._parse_date(row["expiry_date"]),
+                    document_path=row["document_path"] or "",
+                    served_to_tenant_date=self.db._parse_date(row["served_to_tenant_date"]),
+                    reference_number=row["reference_number"] or "",
+                    notes=row["notes"] or "",
+                )
+            return None
+
+    def _list_events_any_user(self, property_id: int) -> list:
+        """List compliance events for a property (any user)."""
+        from models import ComplianceEvent, EventStatus, EventPriority
+        with self.db.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM compliance_events WHERE property_id = ? ORDER BY due_date ASC",
+                (property_id,),
+            )
+            return [
+                ComplianceEvent(
+                    id=row["id"],
+                    property_id=row["property_id"],
+                    tenancy_id=row["tenancy_id"],
+                    event_type=row["event_type"],
+                    event_name=row["event_name"],
+                    due_date=self.db._parse_date(row["due_date"]),
+                    completed_date=self.db._parse_date(row["completed_date"]),
+                    status=EventStatus(row["status"]),
+                    priority=EventPriority(row["priority"]),
+                    notes=row["notes"] or "",
+                )
+                for row in cursor.fetchall()
+            ]
 
     def _reminder_already_sent(self, item_type: str, item_id: int, reminder_days: int) -> bool:
         """Check if a reminder has already been sent for this item/threshold."""
@@ -300,9 +380,9 @@ class NotificationService:
             error_body = e.read().decode("utf-8", errors="replace")
             raise ValueError(f"Failed to send email: {error_body}")
 
-    def get_pending_reminders_preview(self) -> list[ExpiryItem]:
+    def get_pending_reminders_preview(self, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get items that would trigger reminders (for preview/testing)."""
-        return self.get_expiring_items()
+        return self.get_expiring_items(user_id=user_id)
 
     def clear_sent_reminders(self, item_type: Optional[str] = None, item_id: Optional[int] = None) -> None:
         """Clear sent reminder records (useful for testing or resetting)."""

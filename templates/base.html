@@ -391,10 +391,9 @@
         <a href="{{ url_for('properties') }}">Properties</a>
         <a href="{{ url_for('tenancies') }}">Tenancies</a>
         <a href="{{ url_for('timeline') }}">Timeline</a>
-        <a href="{{ url_for('settings') }}">Settings</a>
         <a href="{{ url_for('upload_tenancy') }}" class="upload-btn">+ Upload PDF</a>
         {% if current_user.is_authenticated %}
-            <span style="color: #999; margin-left: auto;">{{ current_user.name }}</span>
+            <a href="{{ url_for('account') }}" style="margin-left: auto;">{{ current_user.name }}</a>
             <a href="{{ url_for('logout') }}">Logout</a>
         {% endif %}
     </nav>

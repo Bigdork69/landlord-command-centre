@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Account - Landlord Command Centre{% endblock %}
+
+{% block content %}
+<h1>Account</h1>
+
+<div class="detail-grid">
+    <div class="card">
+        <h2>Your Details</h2>
+
+        <form method="POST" action="{{ url_for('update_account') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" value="{{ current_user.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" value="{{ current_user.email }}" disabled>
+                <small style="color: #666;">Email cannot be changed</small>
+            </div>
+
+            <button type="submit" class="btn btn-success">Save Changes</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Change Password</h2>
+
+        <form method="POST" action="{{ url_for('change_password') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-group">
+                <label for="current_password">Current Password</label>
+                <input type="password" id="current_password" name="current_password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input type="password" id="new_password" name="new_password" required minlength="8">
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm New Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+
+            <button type="submit" class="btn">Change Password</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Email Reminders</h2>
+        <p style="color: #666;">
+            Reminder emails are sent to <strong>{{ current_user.email }}</strong> when certificates are expiring.
+        </p>
+        <p>
+            You'll be notified at 3 months, 2 months, 4 weeks, 3 weeks, 2 weeks, and 1 week before expiry.
+        </p>
+
+        {% if pending_reminders %}
+        <h3 style="margin-top: 1.5rem;">Upcoming Reminders</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Property</th>
+                    <th>Expires</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pending_reminders %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.property_address }}</td>
+                    <td>{{ item.expiry_date.strftime('%d %b %Y') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color: #27ae60; margin-top: 1rem;">
+            No reminders due - nothing expiring within 3 months.
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -773,17 +773,60 @@ def complete_event(event_id: int):
 @app.route("/settings")
 @login_required
 def settings():
-    """Show settings page."""
-    db = get_db()
-    notifications = NotificationService(db)
-    email_settings = notifications.get_email_settings()
-    pending = notifications.get_pending_reminders_preview()
+    """Redirect to account page."""
+    return redirect(url_for("account"))
 
-    return render_template(
-        "settings.html",
-        settings=email_settings,
-        pending_reminders=pending,
-    )
+
+@app.route("/account")
+@login_required
+def account():
+    """Account settings page."""
+    db = get_db()
+    user_id = current_user.id
+    notifications = NotificationService(db)
+    pending = notifications.get_pending_reminders_preview(user_id=user_id)
+    return render_template("account.html", pending_reminders=pending)
+
+
+@app.route("/account/update", methods=["POST"])
+@login_required
+def update_account():
+    """Update account details."""
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Name is required", "error")
+        return redirect(url_for("account"))
+
+    db = get_db()
+    db.update_user(current_user.id, name=name)
+    flash("Account updated", "success")
+    return redirect(url_for("account"))
+
+
+@app.route("/account/password", methods=["POST"])
+@login_required
+def change_password():
+    """Change password."""
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    if not check_password(current_password, current_user.password_hash):
+        flash("Current password is incorrect", "error")
+        return redirect(url_for("account"))
+
+    if len(new_password) < 8:
+        flash("New password must be at least 8 characters", "error")
+        return redirect(url_for("account"))
+
+    if new_password != confirm_password:
+        flash("New passwords do not match", "error")
+        return redirect(url_for("account"))
+
+    db = get_db()
+    db.update_user(current_user.id, password_hash=hash_password(new_password))
+    flash("Password changed successfully", "success")
+    return redirect(url_for("account"))
 
 
 @app.route("/settings/save", methods=["POST"])

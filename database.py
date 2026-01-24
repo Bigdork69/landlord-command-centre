@@ -802,3 +802,11 @@ class Database:
                     created_at=row["created_at"],
                 )
             return None
+
+    def update_user(self, user_id: int, name: str = None, password_hash: str = None) -> None:
+        """Update user details."""
+        with self.connection() as conn:
+            if name is not None:
+                conn.execute("UPDATE users SET name = ? WHERE id = ?", (name, user_id))
+            if password_hash is not None:
+                conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
