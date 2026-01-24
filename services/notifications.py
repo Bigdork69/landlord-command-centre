@@ -56,21 +56,15 @@ class NotificationService:
         """Ensure notification tables exist."""
         with self.db.connection() as conn:
             conn.executescript("""
-                -- Email settings table (simplified - just email address)
-                CREATE TABLE IF NOT EXISTS email_settings (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
-                    enabled BOOLEAN DEFAULT 0,
-                    recipient_email TEXT
-                );
-
                 -- Sent reminders tracking (prevent duplicate sends)
                 CREATE TABLE IF NOT EXISTS sent_reminders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
                     item_type TEXT NOT NULL,
                     item_id INTEGER NOT NULL,
                     reminder_days INTEGER NOT NULL,
                     sent_date DATE NOT NULL,
-                    UNIQUE(item_type, item_id, reminder_days)
+                    UNIQUE(user_id, item_type, item_id, reminder_days)
                 );
             """)
 

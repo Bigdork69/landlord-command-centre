@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS properties (
 -- Tenancies table
 CREATE TABLE IF NOT EXISTS tenancies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     property_id INTEGER NOT NULL,
     tenant_names TEXT NOT NULL,
     tenancy_start_date DATE,
@@ -59,12 +60,14 @@ CREATE TABLE IF NOT EXISTS tenancies (
     document_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (property_id) REFERENCES properties(id)
 );
 
 -- Certificates table
 CREATE TABLE IF NOT EXISTS certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     property_id INTEGER NOT NULL,
     certificate_type TEXT NOT NULL,
     issue_date DATE,
@@ -74,12 +77,14 @@ CREATE TABLE IF NOT EXISTS certificates (
     reference_number TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (property_id) REFERENCES properties(id)
 );
 
 -- Compliance events table
 CREATE TABLE IF NOT EXISTS compliance_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     property_id INTEGER NOT NULL,
     tenancy_id INTEGER,
     event_type TEXT NOT NULL,
@@ -90,6 +95,7 @@ CREATE TABLE IF NOT EXISTS compliance_events (
     priority TEXT NOT NULL DEFAULT 'medium',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (property_id) REFERENCES properties(id),
     FOREIGN KEY (tenancy_id) REFERENCES tenancies(id)
 );
@@ -97,12 +103,14 @@ CREATE TABLE IF NOT EXISTS compliance_events (
 -- Documents served to tenants
 CREATE TABLE IF NOT EXISTS served_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     tenancy_id INTEGER NOT NULL,
     document_type TEXT NOT NULL,
     served_date DATE,
     proof_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (tenancy_id) REFERENCES tenancies(id),
     UNIQUE(tenancy_id, document_type)
 );
