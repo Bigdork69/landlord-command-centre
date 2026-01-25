@@ -213,7 +213,7 @@ def add_property():
             property_type=PropertyType(request.form["property_type"]),
         )
         prop_id = db.create_property(prop, user_id=user_id)
-        flash(f"Property created with ID: {prop_id}", "success")
+        flash(f"Property added successfully! You can now add tenants and certificates.", "success")
         return redirect(url_for("properties"))
 
     return render_template("add_property.html", property_types=PropertyType)
@@ -386,7 +386,7 @@ def upload_certificate(property_id: int):
                     flash(warning, "warning")
 
             if issue_date and expiry_date:
-                flash(f"Certificate uploaded! Valid from {issue_date} to {expiry_date}", "success")
+                flash(f"Certificate uploaded successfully! Valid until {expiry_date}.", "success")
             elif issue_date:
                 flash(f"Certificate uploaded! Issued {issue_date}. Please verify expiry date.", "warning")
             else:
@@ -438,7 +438,7 @@ def update_certificate(cert_id: int):
             notes = f"Rating: {rating}; {existing_notes}" if existing_notes else f"Rating: {rating}"
 
     db.update_certificate(cert_id, user_id=user_id, issue_date=issue_date, expiry_date=expiry_date, notes=notes)
-    flash("Certificate dates updated!", "success")
+    flash("Certificate dates saved successfully!", "success")
 
     return redirect(url_for("property_detail", property_id=cert.property_id))
 
@@ -492,7 +492,7 @@ def add_tenancy():
             timeline = TimelineGenerator(db, user_id=user_id)
             events = timeline.generate_for_tenancy(tenancy)
 
-            flash(f"Tenancy created! Generated {len(events)} compliance deadlines.", "success")
+            flash(f"Tenancy added successfully! We've created {len(events)} compliance reminders for you.", "success")
             return redirect(url_for("tenancy_detail", tenancy_id=tenancy_id))
         except Exception as e:
             flash(f"Error creating tenancy: {e}", "error")
@@ -606,7 +606,7 @@ def confirm_tenancy():
         timeline = TimelineGenerator(db, user_id=user_id)
         events = timeline.generate_for_tenancy(tenancy)
 
-        flash(f"Tenancy created from PDF! Generated {len(events)} compliance deadlines.", "success")
+        flash(f"Tenancy added from PDF! We've created {len(events)} compliance reminders for you.", "success")
         return redirect(url_for("tenancy_detail", tenancy_id=tenancy_id))
 
     except Exception as e:
@@ -762,7 +762,7 @@ def complete_event(event_id: int):
     user_id = current_user.id
     tl = TimelineGenerator(db, user_id=user_id)
     tl.mark_complete(event_id)
-    flash("Event marked as completed", "success")
+    flash("Task completed! Well done.", "success")
 
     # Redirect back to referring page
     return redirect(request.referrer or url_for("timeline"))
@@ -797,7 +797,7 @@ def update_account():
 
     db = get_db()
     db.update_user(current_user.id, name=name)
-    flash("Account updated", "success")
+    flash("Account updated successfully!", "success")
     return redirect(url_for("account"))
 
 
