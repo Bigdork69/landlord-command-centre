@@ -22,17 +22,17 @@
             </thead>
             <tbody>
                 {% for prop in properties %}
-                <tr>
+                <tr class="clickable-row" onclick="window.location='{{ url_for('property_detail', property_id=prop.id) }}'">
                     <td>{{ prop.id }}</td>
-                    <td>{{ prop.address }}</td>
+                    <td><strong>{{ prop.address }}</strong></td>
                     <td>{{ prop.postcode }}</td>
                     <td>{{ prop.property_type.value | capitalize }}</td>
-                    <td style="display: flex; gap: 0.5rem; align-items: center;">
+                    <td style="display: flex; gap: 0.5rem; align-items: center;" onclick="event.stopPropagation()">
                         <a href="{{ url_for('property_detail', property_id=prop.id) }}" class="action-link">View</a>
                         <form action="{{ url_for('delete_property', property_id=prop.id) }}" method="post"
                               onsubmit="return confirm('Delete this property and ALL associated data?');"
                               style="margin: 0;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="delete-btn" title="Delete property">🗑️</button>
                         </form>
                     </td>
@@ -48,6 +48,13 @@
 </div>
 
 <style>
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+.clickable-row:hover {
+    background-color: #f0fffe;
+}
 .delete-btn {
     background: none;
     border: none;
