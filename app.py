@@ -20,7 +20,7 @@ from parsers.gas_safety import GasSafetyParser
 from parsers.eicr import EICRParser
 from parsers.epc import EPCParser
 from services.timeline import TimelineGenerator
-from services.notifications import NotificationService, EmailSettings
+from services.notifications import NotificationService
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
@@ -159,11 +159,9 @@ def index():
     db = get_db()
     user_id = current_user.id
 
-    # Auto-send reminders if email is configured (silent operation)
+    # Auto-send reminders for current user (silent operation)
     notifications = NotificationService(db)
-    settings = notifications.get_email_settings()
-    if settings.enabled and settings.recipient_email:
-        notifications.send_reminders()  # Only sends if due and not yet sent
+    notifications.send_reminders(user_id=user_id, user_email=current_user.email)
 
     properties = db.list_properties(user_id=user_id)
     tenancies = db.list_tenancies(user_id=user_id, active_only=True)
@@ -829,77 +827,48 @@ def change_password():
     return redirect(url_for("account"))
 
 
-@app.route("/settings/save", methods=["POST"])
-@login_required
-def save_settings():
-    """Save email notification settings."""
-    db = get_db()
-    notifications = NotificationService(db)
-
-    recipient_email = request.form.get("recipient_email", "").strip()
-    settings = EmailSettings(
-        enabled=bool(recipient_email),  # Auto-enable when email is set
-        recipient_email=recipient_email,
-    )
-
-    notifications.save_email_settings(settings)
-    if recipient_email:
-        flash("Email saved - you'll receive reminders when items are expiring", "success")
-    else:
-        flash("Email reminders disabled", "success")
-    return redirect(url_for("settings"))
-
-
 @app.route("/send-reminders", methods=["POST"])
 @login_required
 def send_reminders():
-    """Send reminder emails for expiring items. Called by cron or manually."""
+    """Send reminder emails for current user's expiring items."""
     db = get_db()
     notifications = NotificationService(db)
-    result = notifications.send_reminders()
+    result = notifications.send_reminders(user_id=current_user.id, user_email=current_user.email)
 
-    # Return JSON for API use (cron jobs)
+    # Return JSON for API use
     if request.headers.get("Accept") == "application/json":
         return result
 
     # Flash message for web UI
     if result["status"] == "ok":
         if result["sent"] > 0:
-            flash(f"Sent {result['sent']} reminder(s)", "success")
+            flash(f"Sent {result['sent']} reminder(s) to {current_user.email}", "success")
         else:
             flash("No reminders needed - nothing expiring soon", "success")
-    elif result["status"] == "disabled":
-        flash("Email notifications are disabled. Enable them in settings.", "warning")
     else:
         flash(f"Error sending reminders: {result.get('message', 'Unknown error')}", "error")
 
-    return redirect(url_for("settings"))
+    return redirect(url_for("account"))
 
 
 @app.route("/send-test-reminders", methods=["POST"])
 @login_required
 def send_test_reminders():
-    """Send test reminder email with current pending items."""
+    """Send test reminder email with current pending items to current user."""
     db = get_db()
     notifications = NotificationService(db)
 
-    # Check settings first
-    settings = notifications.get_email_settings()
-    if not settings.recipient_email:
-        flash("Enter your email address first", "warning")
-        return redirect(url_for("settings"))
-
-    result = notifications.send_reminders()
+    result = notifications.send_reminders(user_id=current_user.id, user_email=current_user.email)
 
     if result["status"] == "ok":
         if result["sent"] > 0:
-            flash(f"Test email sent to {settings.recipient_email}", "success")
+            flash(f"Test email sent to {current_user.email}", "success")
         else:
             flash("No items expiring within 3 months - nothing to send", "success")
     else:
         flash(f"Error: {result.get('message', 'Failed to send email')}", "error")
 
-    return redirect(url_for("settings"))
+    return redirect(url_for("account"))
 
 
 if __name__ == "__main__":
