@@ -871,6 +871,29 @@ def send_test_reminders():
     return redirect(url_for("account"))
 
 
+@app.route("/health")
+def health_check():
+    """Health check endpoint showing database status."""
+    try:
+        db = get_db()
+        db_type = "PostgreSQL" if db.use_postgres else "SQLite"
+        with db.connection() as conn:
+            conn.execute("SELECT 1")
+            result = conn.fetchone()
+        return {
+            "status": "ok",
+            "database": db_type,
+            "database_url_set": bool(os.environ.get("DATABASE_URL")),
+            "connection": "success"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "database_url_set": bool(os.environ.get("DATABASE_URL"))
+        }, 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
