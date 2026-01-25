@@ -41,9 +41,13 @@ class ExpiryItem:
 class NotificationService:
     """Service for sending expiry reminder notifications."""
 
+    _tables_created = False
+
     def __init__(self, db: Database):
         self.db = db
-        self._ensure_tables()
+        if not NotificationService._tables_created:
+            self._ensure_tables()
+            NotificationService._tables_created = True
 
     def _ensure_tables(self) -> None:
         """Ensure notification tables exist."""

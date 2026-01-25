@@ -143,13 +143,20 @@ def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+_db_instance = None
+_db_initialized = False
+
 def get_db() -> Database:
-    """Get database instance."""
-    config = get_config()
-    config.ensure_directories()
-    db = Database(config.database_path)
-    db.initialize()
-    return db
+    """Get database instance (singleton, initialized once)."""
+    global _db_instance, _db_initialized
+    if _db_instance is None:
+        config = get_config()
+        config.ensure_directories()
+        _db_instance = Database(config.database_path)
+    if not _db_initialized:
+        _db_instance.initialize()
+        _db_initialized = True
+    return _db_instance
 
 
 @app.route("/")
