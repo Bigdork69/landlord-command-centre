@@ -8,14 +8,21 @@
 <div class="card" style="max-width: 500px;">
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-            <label for="address">Address</label>
-            <input type="text" id="address" name="address" required placeholder="123 High Street">
-        </div>
 
         <div class="form-group">
             <label for="postcode">Postcode</label>
-            <input type="text" id="postcode" name="postcode" required placeholder="SW1A 1AA">
+            <input type="text" id="postcode" name="postcode" required placeholder="Start typing postcode..."
+                   autocomplete="off" list="postcode-suggestions">
+            <datalist id="postcode-suggestions"></datalist>
+            <small id="postcode-info" style="color: #666; display: none;"></small>
+        </div>
+
+        <div class="form-group">
+            <label for="address">Address</label>
+            <select id="address-select" style="display: none; margin-bottom: 0.5rem;">
+                <option value="">Select an address...</option>
+            </select>
+            <input type="text" id="address" name="address" required placeholder="Enter postcode first to find addresses">
         </div>
 
         <div class="form-group">
@@ -31,4 +38,89 @@
         <a href="{{ url_for('properties') }}" style="margin-left: 1rem;">Cancel</a>
     </form>
 </div>
+
+<script>
+const postcodeInput = document.getElementById('postcode');
+const postcodeInfo = document.getElementById('postcode-info');
+const postcodeSuggestions = document.getElementById('postcode-suggestions');
+const addressInput = document.getElementById('address');
+const addressSelect = document.getElementById('address-select');
+
+let debounceTimer;
+
+// Postcode autocomplete
+postcodeInput.addEventListener('input', function() {
+    const query = this.value.replace(/\s/g, '').toUpperCase();
+
+    clearTimeout(debounceTimer);
+
+    if (query.length < 2) {
+        postcodeSuggestions.innerHTML = '';
+        return;
+    }
+
+    debounceTimer = setTimeout(() => {
+        fetch(`https://api.postcodes.io/postcodes/${query}/autocomplete`)
+            .then(r => r.json())
+            .then(data => {
+                postcodeSuggestions.innerHTML = '';
+                if (data.result) {
+                    data.result.forEach(pc => {
+                        const opt = document.createElement('option');
+                        opt.value = pc;
+                        postcodeSuggestions.appendChild(opt);
+                    });
+                }
+            })
+            .catch(() => {});
+    }, 200);
+});
+
+// When postcode is fully entered, validate and lookup addresses
+postcodeInput.addEventListener('change', lookupPostcode);
+postcodeInput.addEventListener('blur', lookupPostcode);
+
+function lookupPostcode() {
+    const postcode = postcodeInput.value.trim();
+    if (postcode.length < 5) return;
+
+    // Validate postcode and get info
+    fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.result) {
+                const r = data.result;
+                postcodeInfo.textContent = `${r.admin_ward}, ${r.admin_district}`;
+                postcodeInfo.style.display = 'block';
+                postcodeInfo.style.color = '#27ae60';
+
+                // Format postcode properly
+                postcodeInput.value = r.postcode;
+
+                // Enable address field
+                addressInput.placeholder = `Enter address in ${r.admin_ward}`;
+            } else {
+                postcodeInfo.textContent = 'Postcode not found';
+                postcodeInfo.style.display = 'block';
+                postcodeInfo.style.color = '#e74c3c';
+            }
+        })
+        .catch(() => {
+            postcodeInfo.style.display = 'none';
+        });
+}
+</script>
+
+<style>
+#postcode-info {
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+}
+#address-select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+</style>
 {% endblock %}
