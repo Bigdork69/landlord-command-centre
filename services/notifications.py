@@ -38,13 +38,6 @@ class ExpiryItem:
     reminder_label: str  # e.g., "3 months", "2 weeks"
 
 
-@dataclass
-class EmailSettings:
-    """Email configuration settings."""
-    enabled: bool = False
-    recipient_email: str = ""
-
-
 class NotificationService:
     """Service for sending expiry reminder notifications."""
 
@@ -56,68 +49,41 @@ class NotificationService:
         """Ensure notification tables exist."""
         with self.db.connection() as conn:
             conn.executescript("""
-                -- Email settings table (simplified - just email address)
-                CREATE TABLE IF NOT EXISTS email_settings (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
-                    enabled BOOLEAN DEFAULT 0,
-                    recipient_email TEXT
-                );
-
                 -- Sent reminders tracking (prevent duplicate sends)
                 CREATE TABLE IF NOT EXISTS sent_reminders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
                     item_type TEXT NOT NULL,
                     item_id INTEGER NOT NULL,
                     reminder_days INTEGER NOT NULL,
                     sent_date DATE NOT NULL,
-                    UNIQUE(item_type, item_id, reminder_days)
+                    UNIQUE(user_id, item_type, item_id, reminder_days)
                 );
             """)
 
-    def get_email_settings(self) -> EmailSettings:
-        """Get current email settings."""
-        with self.db.connection() as conn:
-            cursor = conn.execute("SELECT enabled, recipient_email FROM email_settings WHERE id = 1")
-            row = cursor.fetchone()
-            if row:
-                return EmailSettings(
-                    enabled=bool(row["enabled"]),
-                    recipient_email=row["recipient_email"] or "",
-                )
-            return EmailSettings()
-
-    def save_email_settings(self, settings: EmailSettings) -> None:
-        """Save email settings."""
-        with self.db.connection() as conn:
-            conn.execute("""
-                INSERT INTO email_settings (id, enabled, recipient_email)
-                VALUES (1, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    enabled = excluded.enabled,
-                    recipient_email = excluded.recipient_email
-            """, (
-                settings.enabled,
-                settings.recipient_email,
-            ))
-
-    def get_expiring_items(self) -> list[ExpiryItem]:
+    def get_expiring_items(self, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get all items that need reminders based on the schedule."""
         today = date.today()
         items = []
 
         # Check certificates
         for cert_type in CertificateType:
-            items.extend(self._get_expiring_certificates(cert_type, today))
+            items.extend(self._get_expiring_certificates(cert_type, today, user_id))
 
         # Check compliance events with due dates
-        items.extend(self._get_expiring_events(today))
+        items.extend(self._get_expiring_events(today, user_id))
 
         return items
 
-    def _get_expiring_certificates(self, cert_type: CertificateType, today: date) -> list[ExpiryItem]:
+    def _get_expiring_certificates(self, cert_type: CertificateType, today: date, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get certificates of a type that are expiring within the reminder window."""
         items = []
-        properties = self.db.list_properties()
+        # If user_id provided, filter to that user's properties
+        if user_id is not None:
+            properties = self.db.list_properties(user_id=user_id)
+        else:
+            # Fallback for system-wide reminders (no user_id means check all)
+            properties = self._list_all_properties()
 
         cert_names = {
             CertificateType.GAS_SAFETY: "Gas Safety Certificate",
@@ -127,15 +93,18 @@ class NotificationService:
         }
 
         for prop in properties:
-            cert = self.db.get_latest_certificate(prop.id, cert_type)
+            if user_id is not None:
+                cert = self.db.get_latest_certificate(prop.id, cert_type, user_id=user_id)
+            else:
+                cert = self._get_latest_certificate_any_user(prop.id, cert_type)
             if cert and cert.expiry_date:
                 days_until = (cert.expiry_date - today).days
 
                 # Check each reminder threshold
                 for label, days in REMINDER_SCHEDULE:
                     if days_until <= days and days_until > 0:
-                        # Check if already sent
-                        if not self._reminder_already_sent("certificate", cert.id, days):
+                        # Check if already sent (user_id required for tracking)
+                        if user_id is not None and not self._reminder_already_sent("certificate", cert.id, days, user_id):
                             items.append(ExpiryItem(
                                 item_type="certificate",
                                 item_id=cert.id,
@@ -149,13 +118,20 @@ class NotificationService:
 
         return items
 
-    def _get_expiring_events(self, today: date) -> list[ExpiryItem]:
+    def _get_expiring_events(self, today: date, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get compliance events that are due within the reminder window."""
         items = []
-        properties = self.db.list_properties()
+        # If user_id provided, filter to that user's properties
+        if user_id is not None:
+            properties = self.db.list_properties(user_id=user_id)
+        else:
+            properties = self._list_all_properties()
 
         for prop in properties:
-            events = self.db.list_events(property_id=prop.id)
+            if user_id is not None:
+                events = self.db.list_events(user_id=user_id, property_id=prop.id)
+            else:
+                events = self._list_events_any_user(property_id=prop.id)
             for event in events:
                 if event.due_date and event.status.value == "pending":
                     days_until = (event.due_date - today).days
@@ -163,8 +139,8 @@ class NotificationService:
                     # Check each reminder threshold
                     for label, days in REMINDER_SCHEDULE:
                         if days_until <= days and days_until > 0:
-                            # Check if already sent
-                            if not self._reminder_already_sent("event", event.id, days):
+                            # Check if already sent (user_id required for tracking)
+                            if user_id is not None and not self._reminder_already_sent("event", event.id, days, user_id):
                                 items.append(ExpiryItem(
                                     item_type="event",
                                     item_id=event.id,
@@ -178,57 +154,119 @@ class NotificationService:
 
         return items
 
-    def _reminder_already_sent(self, item_type: str, item_id: int, reminder_days: int) -> bool:
-        """Check if a reminder has already been sent for this item/threshold."""
+    def _list_all_properties(self) -> list:
+        """List all properties across all users (for system-wide reminders)."""
+        from models import Property, PropertyType
+        with self.db.connection() as conn:
+            cursor = conn.execute("SELECT * FROM properties ORDER BY address")
+            rows = cursor.fetchall()
+            return [
+                Property(
+                    id=row["id"],
+                    address=row["address"],
+                    postcode=row["postcode"],
+                    property_type=PropertyType(row["property_type"]),
+                )
+                for row in rows
+            ]
+
+    def _get_latest_certificate_any_user(self, property_id: int, cert_type: CertificateType):
+        """Get the most recent certificate of a type for a property (any user)."""
+        from models import Certificate
         with self.db.connection() as conn:
             cursor = conn.execute(
-                "SELECT 1 FROM sent_reminders WHERE item_type = ? AND item_id = ? AND reminder_days = ?",
-                (item_type, item_id, reminder_days),
+                """SELECT * FROM certificates
+                   WHERE property_id = ? AND certificate_type = ?
+                   ORDER BY issue_date DESC LIMIT 1""",
+                (property_id, cert_type.value),
+            )
+            row = cursor.fetchone()
+            if row:
+                return Certificate(
+                    id=row["id"],
+                    property_id=row["property_id"],
+                    certificate_type=CertificateType(row["certificate_type"]),
+                    issue_date=self.db._parse_date(row["issue_date"]),
+                    expiry_date=self.db._parse_date(row["expiry_date"]),
+                    document_path=row["document_path"] or "",
+                    served_to_tenant_date=self.db._parse_date(row["served_to_tenant_date"]),
+                    reference_number=row["reference_number"] or "",
+                    notes=row["notes"] or "",
+                )
+            return None
+
+    def _list_events_any_user(self, property_id: int) -> list:
+        """List compliance events for a property (any user)."""
+        from models import ComplianceEvent, EventStatus, EventPriority
+        with self.db.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM compliance_events WHERE property_id = ? ORDER BY due_date ASC",
+                (property_id,),
+            )
+            return [
+                ComplianceEvent(
+                    id=row["id"],
+                    property_id=row["property_id"],
+                    tenancy_id=row["tenancy_id"],
+                    event_type=row["event_type"],
+                    event_name=row["event_name"],
+                    due_date=self.db._parse_date(row["due_date"]),
+                    completed_date=self.db._parse_date(row["completed_date"]),
+                    status=EventStatus(row["status"]),
+                    priority=EventPriority(row["priority"]),
+                    notes=row["notes"] or "",
+                )
+                for row in cursor.fetchall()
+            ]
+
+    def _reminder_already_sent(self, item_type: str, item_id: int, reminder_days: int, user_id: int) -> bool:
+        """Check if a reminder has already been sent for this item/threshold for this user."""
+        with self.db.connection() as conn:
+            cursor = conn.execute(
+                "SELECT 1 FROM sent_reminders WHERE user_id = ? AND item_type = ? AND item_id = ? AND reminder_days = ?",
+                (user_id, item_type, item_id, reminder_days),
             )
             return cursor.fetchone() is not None
 
-    def _mark_reminder_sent(self, item_type: str, item_id: int, reminder_days: int) -> None:
-        """Mark a reminder as sent."""
+    def _mark_reminder_sent(self, item_type: str, item_id: int, reminder_days: int, user_id: int) -> None:
+        """Mark a reminder as sent for a user."""
         with self.db.connection() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO sent_reminders (item_type, item_id, reminder_days, sent_date) VALUES (?, ?, ?, ?)",
-                (item_type, item_id, reminder_days, date.today().isoformat()),
+                "INSERT OR IGNORE INTO sent_reminders (user_id, item_type, item_id, reminder_days, sent_date) VALUES (?, ?, ?, ?, ?)",
+                (user_id, item_type, item_id, reminder_days, date.today().isoformat()),
             )
 
-    def send_reminders(self) -> dict:
-        """Check for expiring items and send reminder emails. Returns summary."""
-        settings = self.get_email_settings()
-
-        if not settings.enabled:
-            return {"status": "disabled", "sent": 0, "items": []}
-
-        if not settings.recipient_email:
-            return {"status": "error", "message": "No recipient email configured", "sent": 0}
-
-        items = self.get_expiring_items()
-
-        if not items:
-            return {"status": "ok", "sent": 0, "message": "No reminders needed"}
-
-        # Group items by reminder urgency
+    def _group_items(self, items: list[ExpiryItem]) -> dict:
+        """Group items by reminder urgency."""
         grouped = {}
         for item in items:
             if item.reminder_label not in grouped:
                 grouped[item.reminder_label] = []
             grouped[item.reminder_label].append(item)
+        return grouped
+
+    def send_reminders(self, user_id: int, user_email: str) -> dict:
+        """Send reminders for a specific user. Returns summary."""
+        items = self.get_expiring_items(user_id=user_id)
+
+        if not items:
+            return {"status": "ok", "sent": 0, "message": "No reminders needed"}
+
+        # Group items by reminder urgency
+        grouped = self._group_items(items)
 
         # Build email
         subject = f"Landlord Compliance Reminders - {len(items)} item(s) expiring"
         body = self._build_email_body(grouped)
 
         try:
-            self._send_email(settings.recipient_email, subject, body)
+            self._send_email(user_email, subject, body)
 
             # Mark all as sent
             for item in items:
                 for label, days in REMINDER_SCHEDULE:
                     if label == item.reminder_label:
-                        self._mark_reminder_sent(item.item_type, item.item_id, days)
+                        self._mark_reminder_sent(item.item_type, item.item_id, days, user_id)
                         break
 
             return {
@@ -239,6 +277,24 @@ class NotificationService:
 
         except Exception as e:
             return {"status": "error", "message": str(e), "sent": 0}
+
+    def send_reminders_for_all_users(self) -> dict:
+        """Check all users and send reminders. Called by cron job or admin."""
+        results = []
+
+        # Get all active users
+        with self.db.connection() as conn:
+            cursor = conn.execute("SELECT id, email, name FROM users WHERE is_active = 1")
+            users = cursor.fetchall()
+
+        for user in users:
+            user_id = user["id"]
+            email = user["email"]
+
+            result = self.send_reminders(user_id, email)
+            results.append({"user": email, **result})
+
+        return {"status": "ok", "results": results}
 
     def _build_email_body(self, grouped: dict) -> str:
         """Build the email body with grouped reminders."""
@@ -306,9 +362,9 @@ class NotificationService:
             error_body = e.read().decode("utf-8", errors="replace")
             raise ValueError(f"Failed to send email: {error_body}")
 
-    def get_pending_reminders_preview(self) -> list[ExpiryItem]:
+    def get_pending_reminders_preview(self, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get items that would trigger reminders (for preview/testing)."""
-        return self.get_expiring_items()
+        return self.get_expiring_items(user_id=user_id)
 
     def clear_sent_reminders(self, item_type: Optional[str] = None, item_id: Optional[int] = None) -> None:
         """Clear sent reminder records (useful for testing or resetting)."""

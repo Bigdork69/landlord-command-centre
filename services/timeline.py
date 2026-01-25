@@ -28,8 +28,9 @@ class ComplianceRule:
 class TimelineGenerator:
     """Generate compliance timeline events for tenancies."""
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, user_id: int):
         self.db = db
+        self.user_id = user_id
         self.rules = self._create_rules()
 
     def _create_rules(self) -> list[ComplianceRule]:
@@ -143,7 +144,7 @@ class TimelineGenerator:
     def _gas_safety_due_date(self, tenancy: Tenancy, last_date: Optional[date]) -> Optional[date]:
         """Calculate Gas Safety renewal due date."""
         # Check for existing certificate
-        cert = self.db.get_latest_certificate(tenancy.property_id, CertificateType.GAS_SAFETY)
+        cert = self.db.get_latest_certificate(tenancy.property_id, CertificateType.GAS_SAFETY, user_id=self.user_id)
         if cert and cert.expiry_date:
             return cert.expiry_date
         # If no certificate, due from tenancy start + 1 year
@@ -153,7 +154,7 @@ class TimelineGenerator:
 
     def _eicr_due_date(self, tenancy: Tenancy, last_date: Optional[date]) -> Optional[date]:
         """Calculate EICR renewal due date."""
-        cert = self.db.get_latest_certificate(tenancy.property_id, CertificateType.EICR)
+        cert = self.db.get_latest_certificate(tenancy.property_id, CertificateType.EICR, user_id=self.user_id)
         if cert and cert.expiry_date:
             return cert.expiry_date
         # If no certificate, due from tenancy start + 5 years
@@ -163,7 +164,7 @@ class TimelineGenerator:
 
     def _epc_due_date(self, tenancy: Tenancy, last_date: Optional[date]) -> Optional[date]:
         """Calculate EPC renewal due date."""
-        cert = self.db.get_latest_certificate(tenancy.property_id, CertificateType.EPC)
+        cert = self.db.get_latest_certificate(tenancy.property_id, CertificateType.EPC, user_id=self.user_id)
         if cert and cert.expiry_date:
             return cert.expiry_date
         # If no certificate, assume needed now
@@ -177,7 +178,7 @@ class TimelineGenerator:
             return []
 
         # Delete existing events for this tenancy to regenerate
-        self.db.delete_events_for_tenancy(tenancy.id)
+        self.db.delete_events_for_tenancy(tenancy.id, user_id=self.user_id)
 
         events = []
         today = date.today()
@@ -205,7 +206,7 @@ class TimelineGenerator:
                 notes=rule.description,
             )
 
-            event_id = self.db.create_event(event)
+            event_id = self.db.create_event(event, user_id=self.user_id)
             event.id = event_id
             events.append(event)
 
@@ -219,6 +220,7 @@ class TimelineGenerator:
     ) -> list[ComplianceEvent]:
         """Get events due within the specified number of days."""
         all_events = self.db.list_events(
+            user_id=self.user_id,
             property_id=property_id,
             tenancy_id=tenancy_id,
         )
@@ -233,7 +235,7 @@ class TimelineGenerator:
             if event.due_date and event.due_date <= cutoff:
                 # Update status if overdue
                 if event.due_date < today and event.status != EventStatus.OVERDUE:
-                    self.db.update_event_status(event.id, EventStatus.OVERDUE)
+                    self.db.update_event_status(event.id, self.user_id, EventStatus.OVERDUE)
                     event.status = EventStatus.OVERDUE
                 upcoming.append(event)
 
@@ -255,6 +257,7 @@ class TimelineGenerator:
     ) -> list[ComplianceEvent]:
         """Get all overdue events."""
         all_events = self.db.list_events(
+            user_id=self.user_id,
             property_id=property_id,
             tenancy_id=tenancy_id,
         )
@@ -267,7 +270,7 @@ class TimelineGenerator:
                 continue
             if event.due_date and event.due_date < today:
                 if event.status != EventStatus.OVERDUE:
-                    self.db.update_event_status(event.id, EventStatus.OVERDUE)
+                    self.db.update_event_status(event.id, self.user_id, EventStatus.OVERDUE)
                     event.status = EventStatus.OVERDUE
                 overdue.append(event)
 
@@ -275,4 +278,4 @@ class TimelineGenerator:
 
     def mark_complete(self, event_id: int) -> None:
         """Mark an event as completed."""
-        self.db.update_event_status(event_id, EventStatus.COMPLETED, date.today())
+        self.db.update_event_status(event_id, self.user_id, EventStatus.COMPLETED, date.today())

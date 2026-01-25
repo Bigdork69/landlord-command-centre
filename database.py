@@ -19,6 +19,7 @@ from models import (
     RequiredDocument,
     ServedDocument,
     Tenancy,
+    User,
 )
 
 
@@ -29,15 +30,18 @@ SCHEMA = """
 -- Properties table
 CREATE TABLE IF NOT EXISTS properties (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     address TEXT NOT NULL,
     postcode TEXT NOT NULL,
     property_type TEXT NOT NULL DEFAULT 'house',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 -- Tenancies table
 CREATE TABLE IF NOT EXISTS tenancies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     property_id INTEGER NOT NULL,
     tenant_names TEXT NOT NULL,
     tenancy_start_date DATE,
@@ -56,12 +60,14 @@ CREATE TABLE IF NOT EXISTS tenancies (
     document_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (property_id) REFERENCES properties(id)
 );
 
 -- Certificates table
 CREATE TABLE IF NOT EXISTS certificates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     property_id INTEGER NOT NULL,
     certificate_type TEXT NOT NULL,
     issue_date DATE,
@@ -71,12 +77,14 @@ CREATE TABLE IF NOT EXISTS certificates (
     reference_number TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (property_id) REFERENCES properties(id)
 );
 
 -- Compliance events table
 CREATE TABLE IF NOT EXISTS compliance_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     property_id INTEGER NOT NULL,
     tenancy_id INTEGER,
     event_type TEXT NOT NULL,
@@ -87,6 +95,7 @@ CREATE TABLE IF NOT EXISTS compliance_events (
     priority TEXT NOT NULL DEFAULT 'medium',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (property_id) REFERENCES properties(id),
     FOREIGN KEY (tenancy_id) REFERENCES tenancies(id)
 );
@@ -94,14 +103,26 @@ CREATE TABLE IF NOT EXISTS compliance_events (
 -- Documents served to tenants
 CREATE TABLE IF NOT EXISTS served_documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     tenancy_id INTEGER NOT NULL,
     document_type TEXT NOT NULL,
     served_date DATE,
     proof_path TEXT,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (tenancy_id) REFERENCES tenancies(id),
     UNIQUE(tenancy_id, document_type)
+);
+
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Schema version tracking
@@ -160,23 +181,22 @@ class Database:
 
     # Property CRUD operations
 
-    def create_property(self, prop: Property) -> int:
+    def create_property(self, prop: Property, user_id: int) -> int:
         """Create a new property and return its ID."""
         with self.connection() as conn:
             cursor = conn.execute(
-                """
-                INSERT INTO properties (address, postcode, property_type)
-                VALUES (?, ?, ?)
-                """,
-                (prop.address, prop.postcode, prop.property_type.value),
+                """INSERT INTO properties (user_id, address, postcode, property_type)
+                   VALUES (?, ?, ?, ?)""",
+                (user_id, prop.address, prop.postcode, prop.property_type.value),
             )
             return cursor.lastrowid
 
-    def get_property(self, property_id: int) -> Optional[Property]:
-        """Get a property by ID."""
+    def get_property(self, property_id: int, user_id: int) -> Optional[Property]:
+        """Get a property by ID (only if it belongs to user)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM properties WHERE id = ?", (property_id,)
+                "SELECT * FROM properties WHERE id = ? AND user_id = ?",
+                (property_id, user_id),
             )
             row = cursor.fetchone()
             if row:
@@ -195,10 +215,13 @@ class Database:
                 return self._row_to_property(row)
             return None
 
-    def list_properties(self) -> list[Property]:
-        """List all properties."""
+    def list_properties(self, user_id: int) -> list[Property]:
+        """List all properties for a user."""
         with self.connection() as conn:
-            cursor = conn.execute("SELECT * FROM properties ORDER BY created_at DESC")
+            cursor = conn.execute(
+                "SELECT * FROM properties WHERE user_id = ? ORDER BY address",
+                (user_id,),
+            )
             return [self._row_to_property(row) for row in cursor.fetchall()]
 
     def _row_to_property(self, row: sqlite3.Row) -> Property:
@@ -229,20 +252,21 @@ class Database:
 
     # Tenancy CRUD operations
 
-    def create_tenancy(self, tenancy: Tenancy) -> int:
+    def create_tenancy(self, tenancy: Tenancy, user_id: int) -> int:
         """Create a new tenancy and return its ID."""
         with self.connection() as conn:
             cursor = conn.execute(
                 """
                 INSERT INTO tenancies (
-                    property_id, tenant_names, tenancy_start_date, fixed_term_end_date,
+                    user_id, property_id, tenant_names, tenancy_start_date, fixed_term_end_date,
                     rent_amount, rent_frequency, deposit_amount, deposit_protected,
                     deposit_protection_date, deposit_scheme, prescribed_info_served,
                     prescribed_info_date, how_to_rent_served, how_to_rent_date,
                     is_active, document_path, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    user_id,
                     tenancy.property_id,
                     tenancy.tenant_names,
                     tenancy.tenancy_start_date.isoformat()
@@ -274,51 +298,53 @@ class Database:
             )
             return cursor.lastrowid
 
-    def get_tenancy(self, tenancy_id: int) -> Optional[Tenancy]:
-        """Get a tenancy by ID."""
+    def get_tenancy(self, tenancy_id: int, user_id: int) -> Optional[Tenancy]:
+        """Get a tenancy by ID (only if it belongs to user)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM tenancies WHERE id = ?", (tenancy_id,)
+                "SELECT * FROM tenancies WHERE id = ? AND user_id = ?", (tenancy_id, user_id)
             )
             row = cursor.fetchone()
             if row:
                 return self._row_to_tenancy(row)
             return None
 
-    def list_tenancies(self, active_only: bool = False) -> list[Tenancy]:
-        """List tenancies, optionally filtered to active only."""
+    def list_tenancies(self, user_id: int, active_only: bool = False) -> list[Tenancy]:
+        """List tenancies for a user, optionally filtered to active only."""
         with self.connection() as conn:
             if active_only:
                 cursor = conn.execute(
-                    "SELECT * FROM tenancies WHERE is_active = 1 ORDER BY created_at DESC"
+                    "SELECT * FROM tenancies WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC",
+                    (user_id,),
                 )
             else:
                 cursor = conn.execute(
-                    "SELECT * FROM tenancies ORDER BY created_at DESC"
+                    "SELECT * FROM tenancies WHERE user_id = ? ORDER BY created_at DESC",
+                    (user_id,),
                 )
             return [self._row_to_tenancy(row) for row in cursor.fetchall()]
 
     def list_tenancies_for_property(
-        self, property_id: int, active_only: bool = False
+        self, property_id: int, user_id: int, active_only: bool = False
     ) -> list[Tenancy]:
-        """List tenancies for a specific property."""
+        """List tenancies for a specific property (only for user's data)."""
         with self.connection() as conn:
             if active_only:
                 cursor = conn.execute(
                     """SELECT * FROM tenancies
-                       WHERE property_id = ? AND is_active = 1
+                       WHERE property_id = ? AND user_id = ? AND is_active = 1
                        ORDER BY created_at DESC""",
-                    (property_id,),
+                    (property_id, user_id),
                 )
             else:
                 cursor = conn.execute(
-                    "SELECT * FROM tenancies WHERE property_id = ? ORDER BY created_at DESC",
-                    (property_id,),
+                    "SELECT * FROM tenancies WHERE property_id = ? AND user_id = ? ORDER BY created_at DESC",
+                    (property_id, user_id),
                 )
             return [self._row_to_tenancy(row) for row in cursor.fetchall()]
 
-    def update_tenancy(self, tenancy: Tenancy) -> None:
-        """Update an existing tenancy."""
+    def update_tenancy(self, tenancy: Tenancy, user_id: int) -> None:
+        """Update an existing tenancy (only if it belongs to user)."""
         with self.connection() as conn:
             conn.execute(
                 """
@@ -329,7 +355,7 @@ class Database:
                     prescribed_info_served = ?, prescribed_info_date = ?,
                     how_to_rent_served = ?, how_to_rent_date = ?,
                     is_active = ?, document_path = ?, notes = ?
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
                 (
                     tenancy.tenant_names,
@@ -359,6 +385,7 @@ class Database:
                     tenancy.document_path,
                     tenancy.notes,
                     tenancy.id,
+                    user_id,
                 ),
             )
 
@@ -390,17 +417,18 @@ class Database:
 
     # Certificate CRUD operations
 
-    def create_certificate(self, cert: Certificate) -> int:
+    def create_certificate(self, cert: Certificate, user_id: int) -> int:
         """Create a new certificate and return its ID."""
         with self.connection() as conn:
             cursor = conn.execute(
                 """
                 INSERT INTO certificates (
-                    property_id, certificate_type, issue_date, expiry_date,
+                    user_id, property_id, certificate_type, issue_date, expiry_date,
                     document_path, served_to_tenant_date, reference_number, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    user_id,
                     cert.property_id,
                     cert.certificate_type.value,
                     cert.issue_date.isoformat() if cert.issue_date else None,
@@ -415,36 +443,36 @@ class Database:
             )
             return cursor.lastrowid
 
-    def get_certificate(self, cert_id: int) -> Optional[Certificate]:
-        """Get a certificate by ID."""
+    def get_certificate(self, cert_id: int, user_id: int) -> Optional[Certificate]:
+        """Get a certificate by ID (only if it belongs to user)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM certificates WHERE id = ?", (cert_id,)
+                "SELECT * FROM certificates WHERE id = ? AND user_id = ?", (cert_id, user_id)
             )
             row = cursor.fetchone()
             if row:
                 return self._row_to_certificate(row)
             return None
 
-    def list_certificates_for_property(self, property_id: int) -> list[Certificate]:
-        """List all certificates for a property."""
+    def list_certificates_for_property(self, property_id: int, user_id: int) -> list[Certificate]:
+        """List all certificates for a property (only for user's data)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM certificates WHERE property_id = ? ORDER BY created_at DESC",
-                (property_id,),
+                "SELECT * FROM certificates WHERE property_id = ? AND user_id = ? ORDER BY created_at DESC",
+                (property_id, user_id),
             )
             return [self._row_to_certificate(row) for row in cursor.fetchall()]
 
     def get_latest_certificate(
-        self, property_id: int, cert_type: CertificateType
+        self, property_id: int, cert_type: CertificateType, user_id: int
     ) -> Optional[Certificate]:
-        """Get the most recent certificate of a type for a property."""
+        """Get the most recent certificate of a type for a property (only for user's data)."""
         with self.connection() as conn:
             cursor = conn.execute(
                 """SELECT * FROM certificates
-                   WHERE property_id = ? AND certificate_type = ?
+                   WHERE property_id = ? AND certificate_type = ? AND user_id = ?
                    ORDER BY issue_date DESC LIMIT 1""",
-                (property_id, cert_type.value),
+                (property_id, cert_type.value, user_id),
             )
             row = cursor.fetchone()
             if row:
@@ -466,8 +494,8 @@ class Database:
             created_at=self._parse_datetime(row["created_at"]),
         )
 
-    def update_certificate(self, cert_id: int, issue_date=None, expiry_date=None, notes: str = None) -> bool:
-        """Update certificate dates and/or notes."""
+    def update_certificate(self, cert_id: int, user_id: int, issue_date=None, expiry_date=None, notes: str = None) -> bool:
+        """Update certificate dates and/or notes (only if it belongs to user)."""
         with self.connection() as conn:
             updates = []
             params = []
@@ -488,25 +516,27 @@ class Database:
                 return False
 
             params.append(cert_id)
+            params.append(user_id)
             conn.execute(
-                f"UPDATE certificates SET {', '.join(updates)} WHERE id = ?",
+                f"UPDATE certificates SET {', '.join(updates)} WHERE id = ? AND user_id = ?",
                 params,
             )
             return True
 
     # Compliance Events CRUD operations
 
-    def create_event(self, event: ComplianceEvent) -> int:
+    def create_event(self, event: ComplianceEvent, user_id: int) -> int:
         """Create a new compliance event and return its ID."""
         with self.connection() as conn:
             cursor = conn.execute(
                 """
                 INSERT INTO compliance_events (
-                    property_id, tenancy_id, event_type, event_name,
+                    user_id, property_id, tenancy_id, event_type, event_name,
                     due_date, completed_date, status, priority, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    user_id,
                     event.property_id,
                     event.tenancy_id,
                     event.event_type,
@@ -520,11 +550,11 @@ class Database:
             )
             return cursor.lastrowid
 
-    def get_event(self, event_id: int) -> Optional[ComplianceEvent]:
-        """Get an event by ID."""
+    def get_event(self, event_id: int, user_id: int) -> Optional[ComplianceEvent]:
+        """Get an event by ID (only if it belongs to user)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM compliance_events WHERE id = ?", (event_id,)
+                "SELECT * FROM compliance_events WHERE id = ? AND user_id = ?", (event_id, user_id)
             )
             row = cursor.fetchone()
             if row:
@@ -533,14 +563,15 @@ class Database:
 
     def list_events(
         self,
+        user_id: int,
         property_id: Optional[int] = None,
         tenancy_id: Optional[int] = None,
         status: Optional[EventStatus] = None,
     ) -> list[ComplianceEvent]:
-        """List compliance events with optional filters."""
+        """List compliance events for a user with optional filters."""
         with self.connection() as conn:
-            query = "SELECT * FROM compliance_events WHERE 1=1"
-            params = []
+            query = "SELECT * FROM compliance_events WHERE user_id = ?"
+            params = [user_id]
 
             if property_id is not None:
                 query += " AND property_id = ?"
@@ -557,83 +588,95 @@ class Database:
             return [self._row_to_event(row) for row in cursor.fetchall()]
 
     def update_event_status(
-        self, event_id: int, status: EventStatus, completed_date: Optional[date] = None
+        self, event_id: int, user_id: int, status: EventStatus, completed_date: Optional[date] = None
     ) -> None:
-        """Update the status of a compliance event."""
+        """Update the status of a compliance event (only if it belongs to user)."""
         with self.connection() as conn:
             conn.execute(
                 """
                 UPDATE compliance_events
                 SET status = ?, completed_date = ?
-                WHERE id = ?
+                WHERE id = ? AND user_id = ?
                 """,
                 (
                     status.value,
                     completed_date.isoformat() if completed_date else None,
                     event_id,
+                    user_id,
                 ),
             )
 
-    def delete_events_for_tenancy(self, tenancy_id: int) -> None:
-        """Delete all compliance events for a tenancy."""
+    def delete_events_for_tenancy(self, tenancy_id: int, user_id: int) -> None:
+        """Delete all compliance events for a tenancy (only for user's data)."""
         with self.connection() as conn:
             conn.execute(
-                "DELETE FROM compliance_events WHERE tenancy_id = ?",
-                (tenancy_id,),
+                "DELETE FROM compliance_events WHERE tenancy_id = ? AND user_id = ?",
+                (tenancy_id, user_id),
             )
 
-    def delete_events_for_property(self, property_id: int) -> None:
-        """Delete all compliance events for a property."""
+    def delete_events_for_property(self, property_id: int, user_id: int) -> None:
+        """Delete all compliance events for a property (only for user's data)."""
         with self.connection() as conn:
             conn.execute(
-                "DELETE FROM compliance_events WHERE property_id = ?",
-                (property_id,),
+                "DELETE FROM compliance_events WHERE property_id = ? AND user_id = ?",
+                (property_id, user_id),
             )
 
-    def delete_tenancy(self, tenancy_id: int) -> None:
-        """Delete a tenancy and its associated events."""
+    def delete_tenancy(self, tenancy_id: int, user_id: int) -> None:
+        """Delete a tenancy and its associated events (only if it belongs to user)."""
         with self.connection() as conn:
-            # Delete associated events first
+            # Delete associated events first (that belong to user)
             conn.execute(
-                "DELETE FROM compliance_events WHERE tenancy_id = ?",
-                (tenancy_id,),
+                "DELETE FROM compliance_events WHERE tenancy_id = ? AND user_id = ?",
+                (tenancy_id, user_id),
+            )
+            # Delete associated served documents (that belong to user)
+            conn.execute(
+                "DELETE FROM served_documents WHERE tenancy_id = ? AND user_id = ?",
+                (tenancy_id, user_id),
             )
             # Delete the tenancy
             conn.execute(
-                "DELETE FROM tenancies WHERE id = ?",
-                (tenancy_id,),
+                "DELETE FROM tenancies WHERE id = ? AND user_id = ?",
+                (tenancy_id, user_id),
             )
 
-    def delete_certificates_for_property(self, property_id: int) -> None:
-        """Delete all certificates for a property."""
+    def delete_certificates_for_property(self, property_id: int, user_id: int) -> None:
+        """Delete all certificates for a property (only for user's data)."""
         with self.connection() as conn:
             conn.execute(
-                "DELETE FROM certificates WHERE property_id = ?",
-                (property_id,),
+                "DELETE FROM certificates WHERE property_id = ? AND user_id = ?",
+                (property_id, user_id),
             )
 
-    def delete_property(self, property_id: int) -> None:
-        """Delete a property and all associated data."""
+    def delete_property(self, property_id: int, user_id: int) -> None:
+        """Delete a property and all associated data (only if it belongs to user)."""
         with self.connection() as conn:
-            # Delete associated events
+            # Delete associated events (that belong to user)
             conn.execute(
-                "DELETE FROM compliance_events WHERE property_id = ?",
-                (property_id,),
+                "DELETE FROM compliance_events WHERE property_id = ? AND user_id = ?",
+                (property_id, user_id),
             )
-            # Delete associated tenancies
+            # Delete associated served documents for tenancies of this property
             conn.execute(
-                "DELETE FROM tenancies WHERE property_id = ?",
-                (property_id,),
+                """DELETE FROM served_documents WHERE user_id = ? AND tenancy_id IN
+                   (SELECT id FROM tenancies WHERE property_id = ? AND user_id = ?)""",
+                (user_id, property_id, user_id),
             )
-            # Delete associated certificates
+            # Delete associated tenancies (that belong to user)
             conn.execute(
-                "DELETE FROM certificates WHERE property_id = ?",
-                (property_id,),
+                "DELETE FROM tenancies WHERE property_id = ? AND user_id = ?",
+                (property_id, user_id),
             )
-            # Delete the property
+            # Delete associated certificates (that belong to user)
             conn.execute(
-                "DELETE FROM properties WHERE id = ?",
-                (property_id,),
+                "DELETE FROM certificates WHERE property_id = ? AND user_id = ?",
+                (property_id, user_id),
+            )
+            # Delete the property (only if it belongs to user)
+            conn.execute(
+                "DELETE FROM properties WHERE id = ? AND user_id = ?",
+                (property_id, user_id),
             )
 
     def _row_to_event(self, row: sqlite3.Row) -> ComplianceEvent:
@@ -655,50 +698,50 @@ class Database:
     # Served Documents CRUD operations
 
     def mark_document_served(
-        self, tenancy_id: int, document_type: RequiredDocument, served_date: date, proof_path: str = "", notes: str = ""
+        self, tenancy_id: int, document_type: RequiredDocument, served_date: date, user_id: int, proof_path: str = "", notes: str = ""
     ) -> int:
         """Mark a document as served to tenant. Returns the record ID."""
         with self.connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO served_documents (tenancy_id, document_type, served_date, proof_path, notes)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO served_documents (user_id, tenancy_id, document_type, served_date, proof_path, notes)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(tenancy_id, document_type) DO UPDATE SET
                     served_date = excluded.served_date,
                     proof_path = excluded.proof_path,
                     notes = excluded.notes
                 """,
-                (tenancy_id, document_type.value, served_date.isoformat(), proof_path, notes),
+                (user_id, tenancy_id, document_type.value, served_date.isoformat(), proof_path, notes),
             )
             return cursor.lastrowid
 
-    def get_served_documents(self, tenancy_id: int) -> list[ServedDocument]:
-        """Get all served documents for a tenancy."""
+    def get_served_documents(self, tenancy_id: int, user_id: int) -> list[ServedDocument]:
+        """Get all served documents for a tenancy (only for user's data)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM served_documents WHERE tenancy_id = ? ORDER BY served_date",
-                (tenancy_id,),
+                "SELECT * FROM served_documents WHERE tenancy_id = ? AND user_id = ? ORDER BY served_date",
+                (tenancy_id, user_id),
             )
             return [self._row_to_served_document(row) for row in cursor.fetchall()]
 
-    def get_served_document(self, tenancy_id: int, document_type: RequiredDocument) -> Optional[ServedDocument]:
-        """Get a specific served document record."""
+    def get_served_document(self, tenancy_id: int, document_type: RequiredDocument, user_id: int) -> Optional[ServedDocument]:
+        """Get a specific served document record (only for user's data)."""
         with self.connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM served_documents WHERE tenancy_id = ? AND document_type = ?",
-                (tenancy_id, document_type.value),
+                "SELECT * FROM served_documents WHERE tenancy_id = ? AND document_type = ? AND user_id = ?",
+                (tenancy_id, document_type.value, user_id),
             )
             row = cursor.fetchone()
             if row:
                 return self._row_to_served_document(row)
             return None
 
-    def delete_served_document(self, tenancy_id: int, document_type: RequiredDocument) -> None:
-        """Delete a served document record."""
+    def delete_served_document(self, tenancy_id: int, document_type: RequiredDocument, user_id: int) -> None:
+        """Delete a served document record (only for user's data)."""
         with self.connection() as conn:
             conn.execute(
-                "DELETE FROM served_documents WHERE tenancy_id = ? AND document_type = ?",
-                (tenancy_id, document_type.value),
+                "DELETE FROM served_documents WHERE tenancy_id = ? AND document_type = ? AND user_id = ?",
+                (tenancy_id, document_type.value, user_id),
             )
 
     def _row_to_served_document(self, row: sqlite3.Row) -> ServedDocument:
@@ -712,3 +755,58 @@ class Database:
             notes=row["notes"] or "",
             created_at=self._parse_datetime(row["created_at"]),
         )
+
+    # User operations
+    def create_user(self, user: User) -> int:
+        """Create a new user and return their ID."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                """INSERT INTO users (email, password_hash, name, is_active)
+                   VALUES (?, ?, ?, ?)""",
+                (user.email, user.password_hash, user.name, user.is_active),
+            )
+            return cursor.lastrowid
+
+    def get_user(self, user_id: int) -> Optional[User]:
+        """Get a user by ID."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM users WHERE id = ?", (user_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return User(
+                    id=row["id"],
+                    email=row["email"],
+                    password_hash=row["password_hash"],
+                    name=row["name"],
+                    is_active=bool(row["is_active"]),
+                    created_at=row["created_at"],
+                )
+            return None
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email address."""
+        with self.connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM users WHERE email = ?", (email,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return User(
+                    id=row["id"],
+                    email=row["email"],
+                    password_hash=row["password_hash"],
+                    name=row["name"],
+                    is_active=bool(row["is_active"]),
+                    created_at=row["created_at"],
+                )
+            return None
+
+    def update_user(self, user_id: int, name: str = None, password_hash: str = None) -> None:
+        """Update user details."""
+        with self.connection() as conn:
+            if name is not None:
+                conn.execute("UPDATE users SET name = ? WHERE id = ?", (name, user_id))
+            if password_hash is not None:
+                conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
