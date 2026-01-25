@@ -14,6 +14,7 @@
         </p>
 
         <form method="POST" action="{{ url_for('save_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="recipient_email">Your email address</label>
                 <input type="email" id="recipient_email" name="recipient_email"
@@ -26,6 +27,7 @@
 
         {% if settings.recipient_email %}
         <form method="POST" action="{{ url_for('send_test_reminders') }}" style="margin-top: 1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn">Send Test Email</button>
         </form>
         {% endif %}

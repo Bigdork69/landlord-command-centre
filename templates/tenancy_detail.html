@@ -12,6 +12,7 @@
         <form action="{{ url_for('delete_tenancy', tenancy_id=tenancy.id) }}" method="post"
               onsubmit="return confirm('Delete this tenancy and all its compliance events? This cannot be undone.');"
               style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn" style="background: #dc3545;">Delete Tenancy</button>
         </form>
     </div>
@@ -169,12 +170,14 @@
                 <div class="doc-served-info">
                     Served on: <strong>{{ served_documents[doc.value].served_date.strftime('%d %b %Y') }}</strong>
                     <form action="{{ url_for('unserve_document', tenancy_id=tenancy.id) }}" method="post" style="display: inline; margin-left: 1rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="document_type" value="{{ doc.value }}">
                         <button type="submit" class="btn-link" onclick="return confirm('Remove served status?')">Undo</button>
                     </form>
                 </div>
             {% else %}
                 <form action="{{ url_for('serve_document', tenancy_id=tenancy.id) }}" method="post" class="serve-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="document_type" value="{{ doc.value }}">
                     <input type="date" name="served_date" required value="{{ today.isoformat() if today else '' }}">
                     <button type="submit" class="btn btn-small">Mark as Served</button>
@@ -344,6 +347,7 @@
                 <td>
                     {% if event.status != EventStatus.COMPLETED %}
                     <form method="POST" action="{{ url_for('complete_event', event_id=event.id) }}" style="display: inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;">
                             ✓ Done
                         </button>

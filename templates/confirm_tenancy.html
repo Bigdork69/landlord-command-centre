@@ -25,6 +25,7 @@
     </p>
 
     <form method="POST" action="{{ url_for('confirm_tenancy') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="filepath" value="{{ filepath }}">
 
         <div class="detail-grid">

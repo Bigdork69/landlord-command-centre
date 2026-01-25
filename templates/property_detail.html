@@ -13,6 +13,7 @@
         <form action="{{ url_for('delete_property', property_id=property.id) }}" method="post"
               onsubmit="return confirm('Delete this property and ALL associated data? This cannot be undone.');"
               style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger">🗑️ Delete</button>
         </form>
     </div>
@@ -76,6 +77,7 @@
                     <a href="{{ url_for('tenancy_detail', tenancy_id=t.id) }}" class="btn btn-small">View Details</a>
                     <form action="{{ url_for('delete_tenancy', tenancy_id=t.id) }}" method="post"
                           onsubmit="return confirm('Delete this tenancy?');" style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-small btn-danger">🗑️</button>
                     </form>
                 </div>
@@ -151,6 +153,7 @@
 
             {% if not certificates.gas_safety.issue_date or not certificates.gas_safety.expiry_date %}
             <form action="{{ url_for('update_certificate', cert_id=certificates.gas_safety.id) }}" method="post" class="edit-dates-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="missing-dates-msg">⚠️ Dates not detected - please enter manually:</p>
                 <div class="date-inputs">
                     <div class="date-field">
@@ -171,6 +174,7 @@
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
               enctype="multipart/form-data" class="upload-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="cert_type" value="gas_safety">
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="gas_file" onchange="this.form.submit()">
             <label for="gas_file" class="btn btn-small btn-secondary upload-btn-full">📁 {{ 'Upload New' if certificates.gas_safety else 'Choose File & Upload' }}</label>
@@ -209,6 +213,7 @@
 
             {% if not certificates.eicr.issue_date or not certificates.eicr.expiry_date %}
             <form action="{{ url_for('update_certificate', cert_id=certificates.eicr.id) }}" method="post" class="edit-dates-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="missing-dates-msg">⚠️ Dates not detected - please enter manually:</p>
                 <div class="date-inputs">
                     <div class="date-field">
@@ -229,6 +234,7 @@
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
               enctype="multipart/form-data" class="upload-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="cert_type" value="eicr">
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="eicr_file" onchange="this.form.submit()">
             <label for="eicr_file" class="btn btn-small btn-secondary upload-btn-full">📁 {{ 'Upload New' if certificates.eicr else 'Choose File & Upload' }}</label>
@@ -267,6 +273,7 @@
 
             {% if not certificates.epc.issue_date or not certificates.epc.expiry_date %}
             <form action="{{ url_for('update_certificate', cert_id=certificates.epc.id) }}" method="post" class="edit-dates-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="missing-dates-msg">⚠️ Details not detected - please enter manually:</p>
                 <div class="date-inputs">
                     <div class="date-field">
@@ -300,6 +307,7 @@
 
         <form action="{{ url_for('upload_certificate', property_id=property.id) }}" method="post"
               enctype="multipart/form-data" class="upload-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="cert_type" value="epc">
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required id="epc_file" onchange="this.form.submit()">
             <label for="epc_file" class="btn btn-small btn-secondary upload-btn-full">📁 {{ 'Upload New' if certificates.epc else 'Choose File & Upload' }}</label>
@@ -336,6 +344,7 @@
                 <span class="done-check">✓</span>
                 {% else %}
                 <form action="{{ url_for('complete_event', event_id=event.id) }}" method="post" style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-small">Done</button>
                 </form>
                 {% endif %}

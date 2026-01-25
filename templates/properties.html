@@ -32,6 +32,7 @@
                         <form action="{{ url_for('delete_property', property_id=prop.id) }}" method="post"
                               onsubmit="return confirm('Delete this property and ALL associated data?');"
                               style="margin: 0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="delete-btn" title="Delete property">🗑️</button>
                         </form>
                     </td>

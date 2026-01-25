@@ -12,6 +12,7 @@
         </p>
     {% else %}
         <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="property_id">Property</label>
                 <select id="property_id" name="property_id" required>

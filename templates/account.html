@@ -10,7 +10,7 @@
         <h2>Your Details</h2>
 
         <form method="POST" action="{{ url_for('update_account') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
                 <label for="name">Name</label>
@@ -31,7 +31,7 @@
         <h2>Change Password</h2>
 
         <form method="POST" action="{{ url_for('change_password') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
                 <label for="current_password">Current Password</label>
