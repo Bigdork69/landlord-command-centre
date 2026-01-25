@@ -48,18 +48,30 @@ class NotificationService:
     def _ensure_tables(self) -> None:
         """Ensure notification tables exist."""
         with self.db.connection() as conn:
-            conn.executescript("""
-                -- Sent reminders tracking (prevent duplicate sends)
-                CREATE TABLE IF NOT EXISTS sent_reminders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    item_type TEXT NOT NULL,
-                    item_id INTEGER NOT NULL,
-                    reminder_days INTEGER NOT NULL,
-                    sent_date DATE NOT NULL,
-                    UNIQUE(user_id, item_type, item_id, reminder_days)
-                );
-            """)
+            if self.db.use_postgres:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS sent_reminders (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        item_type TEXT NOT NULL,
+                        item_id INTEGER NOT NULL,
+                        reminder_days INTEGER NOT NULL,
+                        sent_date DATE NOT NULL,
+                        UNIQUE(user_id, item_type, item_id, reminder_days)
+                    )
+                """)
+            else:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS sent_reminders (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        item_type TEXT NOT NULL,
+                        item_id INTEGER NOT NULL,
+                        reminder_days INTEGER NOT NULL,
+                        sent_date DATE NOT NULL,
+                        UNIQUE(user_id, item_type, item_id, reminder_days)
+                    )
+                """)
 
     def get_expiring_items(self, user_id: Optional[int] = None) -> list[ExpiryItem]:
         """Get all items that need reminders based on the schedule."""
